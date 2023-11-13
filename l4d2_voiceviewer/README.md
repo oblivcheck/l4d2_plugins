@@ -1,4 +1,4 @@
-# [Voice Viewer]https://forums.alliedmods.net/showthread.php?t=344047)
+# [Voice Viewer](https://forums.alliedmods.net/showthread.php?t=344047)
 
 ## Features
 - Show who is talking (center text or hint text)。
