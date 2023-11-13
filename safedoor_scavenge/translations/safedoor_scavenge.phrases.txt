@@ -1,0 +1,30 @@
+"Phrases"
+{
+        "First"
+        {
+                "#format"       "{1:d}"
+                "en"    "Seconds later, the {1} group of oil barrels will be generated"
+                "chi"   "秒后，第{1}组油桶将生成"
+        }
+        "Next_1"
+        {
+                "en"    "The"
+                "chi"   "第"
+        }
+        "Next_2"
+        {
+                "en"    "group of oil barrels has been generated,"
+                "chi"   "组油桶已经生成，"
+        }
+        "Next_3"
+        {
+                "#format"       "{1:d}"
+                "en"    "Seconds later, The {1} group of oil barrels will be generated"
+                "chi"	"秒后生成第{1}组油桶"
+        }
+	"Unlocked"
+	{
+		"en"	"The saferoom door is now unlocked!"
+		"chi"	"安全门现在解锁了！"
+	}
+}
