@@ -230,8 +230,10 @@ l4d2_RealismFlashlight_Charge_Second "1"
 ## Changes Log:
 ~~~
 1.2.4 (Nov-19-2023)
-         - Add Cvar: "l4d2_RealismFlashlight_AutoFlashlight", When switching from a weapon without a flashlight to a weapon with a flashlight, if the flashlight was previously in the ON state, it will automatically be restored. Requested by “Automage” And "swiftswing1".1.2.3 (Oct-05-2023)
-	- Fixed: If a player dies during a map transition, battery status will be locked.
+         - Add Cvar: "l4d2_RealismFlashlight_AutoFlashlight", When switching from a weapon without a flashlight to a weapon with a flashlight, if the flashlight was previously in the ON state, it will automatically be restored. Requested by “Automage” And "swiftswing1".
+
+1.2.3 (Oct-05-2023)
+  - Fixed: If a player dies during a map transition, battery status will be locked.
 
 1.2.2 (Feb-27-2023)
 	- Fixed: Plugin no longer work after chapter transitions.
