@@ -3,13 +3,16 @@
 
 #define PLUGIN_NAME             "[L4D2] Realism Flash Light"
 #define PLUGIN_DESCRIPTION      "Weapons not equipped with a flashlight will not be able to turn on the flashlight, optionally enable the flashlight battery system (dying torch vs blinking light)."
-#define PLUGIN_VERSION          "1.2.3"
+#define PLUGIN_VERSION          "1.2.4"
 #define PLUGIN_AUTHOR           "Spokzooy/Iciaria"
 #define PLUGIN_URL              "https://forums.alliedmods.net/showthread.php?p=2795890"
 
 /*
 -------------------------------------------------------------------------------
 Change Logs:
+1.2.4 (Nov-19-2023)
+  - Add Cvar: l4d2_RealismFlashlight_AutoFlashlight", When switching from a weapon without a flashlight to a weapon with a flashlight, if the flashlight was previously in the ON state, it will automatically be restored. Requested by "swiftswing1'. 
+
 1.2.3 (Oct-05-2023)
 	- Fixed: If a player dies during a map transition, battery status will be locked.
 
@@ -113,6 +116,7 @@ native int RealismFlashlight_GetStatus(int character, int index);
 ConVar g_hCvarRFL_ServerTickrate;
 ConVar g_hCvarRFL_Debug;
 ConVar g_hCvarRFL_Enabled;
+ConVar g_hCvarRFL_AutoFlashlight;
 
 ConVar g_hCvarRFL_PowerEnabled;
 ConVar g_hCvarRFL_PowerMin;
@@ -150,6 +154,7 @@ ConVar g_hCvarRFL_Charge_Hint;
 int	g_iCvarRFL_ServerTickrate;
 bool	g_bCvarRFL_Debug;
 bool	g_bCvarRFL_Enabled;
+bool  g_bCvarRFL_AutoFlashlight;
 
 bool	g_bCvarRFL_PowerEnabled;
 int	g_iCvarRFL_PowerMin;
@@ -177,6 +182,7 @@ bool	g_bCvarRFL_Charge_Key;
 int	g_iCvarRFL_Charge_Second;
 bool	g_bCvarRFL_Charge_Hint;
 
+bool g_bHavaFlashlightWeapon_FlashLightOn[8];
 int	g_iflashlightState[8][5];
 /*+++++
 [Character] 
@@ -263,6 +269,7 @@ void CreateCvars()
 	g_hCvarRFL_PowerEnabled = CreateConVar("l4d2_RealismFlashLight_PowerEnabled", "0", "Enable battery system?\nThe flashlight will blink on low battery and disable when the battery is depleted.\n0 = Disabled, 1 = Enabled", CVAR_FLAGS);
 	g_hCvarRFL_PowerMin = CreateConVar("l4d2_RealismFlashLight_PowerMin", "200", "The minimum flashlight battery level that can be set when the battery is initialized.\nSecond, Int Value.");
 	g_hCvarRFL_PowerMax = CreateConVar("l4d2_RealismFlashLight_PowerMax", "400", "The maximum flashlight battery level that can be set when the battery is initialized.\nSecond, Int Value.");
+  g_hCvarRFL_AutoFlashlight = CreateConVar("l4d2_RealismFlashlight_AutoFlashlight", "0", "When switch from a weapon without a flashlight to a weapon with a flashlight,\nDoes it automatically restore the flashlight to its previously turned-on state if it was on?");
 
 	g_hCvarRFL_FlashThreshold_lv0 = CreateConVar("l4d2_RealismFlashLight_FlashThreshold_lv0", "0.8", "When the power is lower than a few percent of 'l4d2_RealismFlashLight_PowerMax', the light flashing interval set by 'lv0' is applied\nPercentage, Float Value.\n0.00 = Disabled.");
 	g_hCvarRFL_FlashThreshold_lv0_Off_Min = CreateConVar("l4d2_RealismFlashLight_FlashThreshold_lv0_Off_Min", "10", "The minimum interval between each flash of the flashlight light\n0.1 Second, Int Value.\n0 = Disabled.");
@@ -295,6 +302,7 @@ void CreateCvars()
         g_hCvarRFL_ServerTickrate.AddChangeHook(Event_ConVarChanged);
         g_hCvarRFL_Debug.AddChangeHook(Event_ConVarChanged);
         g_hCvarRFL_Enabled.AddChangeHook(Event_ConVarChanged);
+        g_hCvarRFL_AutoFlashlight.AddChangeHook(Event_ConVarChanged);
 
         g_hCvarRFL_PowerEnabled.AddChangeHook(Event_ConVarChanged);
         g_hCvarRFL_PowerMin.AddChangeHook(Event_ConVarChanged);
@@ -333,6 +341,7 @@ void GetCvars()
 	g_iCvarRFL_ServerTickrate = g_hCvarRFL_ServerTickrate.IntValue;
 	g_bCvarRFL_Debug = g_hCvarRFL_Debug.BoolValue;
 	g_bCvarRFL_Enabled = g_hCvarRFL_Enabled.BoolValue;
+  g_bCvarRFL_AutoFlashlight = g_hCvarRFL_AutoFlashlight.BoolValue;
 
 	g_bCvarRFL_PowerEnabled = g_hCvarRFL_PowerEnabled.BoolValue;
 	g_iCvarRFL_PowerMin = g_hCvarRFL_PowerMin.IntValue;
@@ -808,7 +817,15 @@ void OnWeaponSwitchPost(client, weapon)
 				Allow = true;
 				if(g_iflashlightState[client_count][0] == 2)
 					break;
-				g_iflashlightState[client_count][0] = 0;
+        if(g_bCvarRFL_AutoFlashlight)
+        {
+          bool state = GetEntProp(client, Prop_Send, "m_fEffects") ? true : false;
+          if(g_bHavaFlashlightWeapon_FlashLightOn[client_count] && !state)
+            SetEntProp(client, Prop_Send, "m_fEffects", 4);
+        
+          g_bHavaFlashlightWeapon_FlashLightOn[client_count] = state;
+        }
+        g_iflashlightState[client_count][0] = 0;
 				break;
 			}
 		}
@@ -821,7 +838,9 @@ void OnWeaponSwitchPost(client, weapon)
 				g_iflashlightState[client_count][0] = -2;
 				return;
 			}
-			SetEntProp(client, Prop_Send, "m_fEffects", 0);
+      if(g_bCvarRFL_AutoFlashlight)  g_bHavaFlashlightWeapon_FlashLightOn[client_count] = GetEntProp(client, Prop_Send, "m_fEffects") ? true : false;
+
+      SetEntProp(client, Prop_Send, "m_fEffects", 0);
 			//--Turn off the flashlight.
 			g_iflashlightState[client_count][0] = 1;			
 	}
