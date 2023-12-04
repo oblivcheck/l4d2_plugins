@@ -1,0 +1,400 @@
+﻿/*
+	Following named colors are supported:
+	 - {white}	(use instead of \x01 )
+	 - {cyan}	(use instead of \x03 )
+	 - {orange}	(use instead of \x04 )
+	 - {green}	(use instead of \x05 )
+*/
+
+"Phrases"
+{
+	"Current_map"
+	{
+		"en"		"Current map"
+		"ru"		"Текущая карта"
+		"ua"		"Поточна карта"
+		"zho"		"目前地圖"
+		"chi"		"当前地图"
+	}
+	"Default_maps"
+	{
+		"en"		"Default maps"
+		"ru"		"Стандартные карты"
+		"ua"		"Стандартні карты"
+		"zho"		"官方地圖"
+		"chi"		"官方地图"
+	}
+	"Custom_maps_1"
+	{
+		"en"		"Custom maps << set # 1 >>"
+		"ru"		"Доп. карты  << набор № 1 >>"
+		"ua"		"Додаткові карти  << набір № 1 >>"
+		"zho"		"第三方地圖 << set # 1 >>"
+		"chi"		"第三方地图 << set # 1 >>"
+	}
+	"Custom_maps_2"
+	{
+		"en"		"Custom maps << set # 2 >>"
+		"ru"		"Доп. карты  << набор № 2 >>"
+		"ua"		"Додаткові карты  << набір № 2 >>"
+		"zho"		"第三方地圖 << set # 2 >>"
+		"chi"		"第三方地图 << set # 2 >>"
+	}
+	"Test_maps"
+	{
+		"en"		"Test maps"
+		"ru"		"Тестовые карты"
+		"ua"		"Тестові карти"
+		"zho"		"測試地圖"
+		"chi"		"测试地图"
+	}
+	"All_maps"
+	{
+		"en"		"All maps"
+		"ru"		"Все карты"
+		"ua"		"Всі карти"
+		"zho"		"全部地圖"
+		"chi"		"全部地图"
+	}
+	"By_rating"
+	{
+		"en"		"By rating"
+		"ru"		"По рейтингу"
+		"ua"		"По рейтингу"
+		"zho"		"按評價"
+		"chi"		"评分"
+	}
+	"Rating_value_ask"
+	{
+		"en"		"- What rating to show map with ? -"
+		"ru"		"- Кампании с каким рейтингом показать? -"
+		"ua"		"- Кампанії з яким рейтингом показати? -"
+		"zho"		"- 顯示地圖的評價是多少 ? -"
+		"chi"		"- 显示地图的评分是多少 ? -"
+	}
+	"Rating_1"
+	{
+		"en"		"point (shoking)"
+		"ru"		"балл (отвратительная)"
+		"ua"		"бал (огидна)"
+		"zho"		"一顆星 (非常差)"
+		"chi"		"一颗星 (非常差)"
+	}
+	"Rating_2"
+	{
+		"en"		"points (bad)"
+		"ru"		"балла (плохая)"
+		"ua"		"бала (погана)"
+		"zho"		"二顆星 (很差)"
+		"chi"		"两颗星 (很差)"
+	}
+	"Rating_3"
+	{
+		"en"		"points (mediocre)"
+		"ru"		"балла (средненькая)"
+		"ua"		"бала (середня)"
+		"zho"		"三顆星 (普通)"
+		"chi"		"三颗星 (普通)"
+	}
+	"Rating_4"
+	{
+		"en"		"points (pretty good)"
+		"ru"		"балла (хорошая)"
+		"ua"		"бала (хороша)"
+		"zho"		"四顆星 (很好)"
+		"chi"		"四颗星 (很好)"
+	}
+	"Rating_5"
+	{
+		"en"		"points (nice)"
+		"ru"		"баллов (очень классная)"
+		"ua"		"балів (дуже чудова)"
+		"zho"		"五顆星 (非常好)"
+		"chi"		"五颗星 (非常好)"
+	}
+	"Rating_6"
+	{
+		"en"		"points (excellent)"
+		"ru"		"баллов (блестящая)"
+		"ua"		"балів (блискуча)"
+		"zho"		"六顆星 (完美)"
+		"chi"		"六颗星 (完美)"
+	}
+	"Rating_No"
+	{
+		"en"		"Not yet rated"
+		"ru"		"Ещё без оценки"
+		"ua"		"Ще без оцінки"
+		"zho"		"尚未評價"
+		"chi"		"尚未评分"
+	}
+	"Choose_campaign"
+	{
+		"en"		"- Choose the campaign -"
+		"ru"		"- Выберите кампанию -"
+		"ua"		"- Оберіть кампанію -"
+		"zho"		"- 請選擇地圖 -"
+		"chi"		"- 请选择地图 -"
+	}
+	"No_maps_rating"
+	{
+		"en"		"No maps with such rating yet."
+		"ru"		"Карт с такой оценкой ещё нет."
+		"ua"		"Карт з такою оцінкою ще немає."
+		"zho"		"尚無此類評價的地圖"
+		"chi"		"尚无此类评分的地图"
+	}
+	"No_maps_in_group"
+	{
+		"en"		"No maps in this group yet."
+		"ru"		"В этой группе ещё нет карт."
+		"ua"		"У цій групі ще немає карт."
+		"zho"		"此分類中沒有地圖"
+		"chi"		"此分类中没有地图"
+	}
+	"Choose_map"
+	{
+		"en"		"Choose the map"
+		"ru"		"Выберите карту"
+		"ua"		"Оберіть карту"
+		"zho"		"選擇地圖"
+		"chi"		"选择地图"
+	}
+	"choose_new_map_type"
+	{
+		"en"		"Choose the type to assign"
+		"ru"		"Какой тип присвоить"
+		"ua"		"Який тип присвоїти"
+		"zho"		"選擇要分配的類型"
+		"chi"		"选择要分配的类型"
+	}
+	"new_type_1"
+	{
+		"en"		"Type: < set # 1 >"
+		"ru"		"Тип: < набор № 1 >"
+		"ua"		"Тип: < набір № 1 >"
+		"zho"		"類型: < set # 1 >"
+		"chi"		"类型: < set # 1 >"
+	}
+	"new_type_2"
+	{
+		"en"		"Type: < set # 2 >"
+		"ru"		"Тип: < набор № 2 >"
+		"ua"		"Тип: < набір № 2 >"
+		"zho"		"類型: < set # 2 >"
+		"chi"		"类型: < set # 2 >"
+	}
+	"new_type_test"
+	{
+		"en"		"Type: < test map >"
+		"ru"		"Тип: < тестовая карта >"
+		"ua"		"Тип: < тестова карта >"
+		"zho"		"類型: < 測試地圖 >"
+		"chi"		"类型: < 测试地图 >"
+	}
+	"set_rating"
+	{
+		"en"		"Assign the rating for campaign"
+		"ru"		"Поставьте оценку кампании"
+		"ua"		"Поставте оцінку кампанії"
+		"zho"		"為地圖給予評價"
+		"chi"		"给地图评分"
+	}
+	"Rating_remove"
+	{
+		"en"		"Remove the rating"
+		"ru"		"Удалить рейтинг"
+		"ua"		"Видалити рейтинг"
+		"zho"		"刪除評價"
+		"chi"		"删除评分"
+	}
+	"Move_map_type"
+	{
+		"en"		"Move to another group"
+		"ru"		"Переместить в другую группу"
+		"ua"		"Перемістити до іншої групи"
+		"zho"		"移到另一個分類"
+		"chi"		"移到另一分类"
+	}
+	"set_rating2"
+	{
+		"en"		"Rate this campaign"
+		"ru"		"Поставить оценку"
+		"ua"		"Поставити оцінку"
+		"zho"		"評價這一個地圖"
+		"chi"		"评价这张地图"
+	}
+	"no_maps_for_mode"
+	{
+		"en"		"No maps found in configuration for this mode"
+		"ru"		"Не найдено карт в кофигурации для режима"
+		"ua"		"Не знайдено карт у кофігурації для режиму"
+		"zho"		"在此模式的配置中找不到地圖"
+		"chi"		"在此模式的配置中找不到地图"
+	}
+	"vote_started_announce"
+	{
+		"#format"	"{1:s}"
+		"en"		"Change map to: {1} ?"
+		"ru"		"Сменить карту на: {1} ?"
+		"ua"		"Змінити карту на: {1} ?"
+		"zho"		"更換地圖為: {1} ?"
+		"chi"		"更换地图为: {1} ?"
+	}
+	"map"
+	{
+		"en"		"Map"
+		"ru"		"Карта"
+		"ua"		"Карта"
+		"zho"		"地圖"
+		"chi"		"地图"
+	}
+	"not_exist"
+	{
+		"en"		"is not exist on the server!"
+		"ru"		"не существует на сервере!"
+		"ua"		"не існує на сервері!"
+		"zho"		"不存在伺服器上!"
+		"chi"		"不存在于服务器上!"
+	}
+	"vote_in_progress"
+	{
+		"en"		"Another vote is not over!"
+		"ru"		"Другое голосование ещё не закончилось!"
+		"ua"		"Інше голосування ще не завершилося!"
+		"zho"		"另一個投票還沒結束!"
+		"chi"		"另一个投票还没结束!"
+	}
+	"Yes"
+	{
+		"en"		"Yes"
+		"ru"		"Да"
+		"ua"		"Так"
+		"zho"		"是"
+		"chi"		"是"
+	}
+	"No"
+	{
+		"en"		"No"
+		"ru"		"Нет"
+		"ua"		"Ні"
+		"zho"		"否"
+		"chi"		"否"
+	}
+	"Not_enough_votemark_players"
+	{
+		"#format"	"{1:i}"
+		"en"		"Not enough clients to start vote for mark (should be: {1}+)"
+		"ru"		"Не достаточно игроков, чтобы начать голосование за рейтинг (должно быть: {1}+)"
+		"ua"		"Не достатньо гравців, щоб розпочати голосування за рейтинг (має бути: {1}+)"
+		"zho"		"沒有足夠的玩家可以開始地圖評價投票 (人數要有: {1}+)"
+		"chi"		"沒有足够的玩家可以开始地图评分投票 (人数要有: {1}+)"
+	}
+	"set_mark_vote_title"
+	{
+		"#format"	"{1:i},{2:T},{3:s}"
+		"en"		"Set mark {1} {2} for the map: {3} ?"
+		"ru"		"Поставить рейтинг {1} {2} карте: {3} ?"
+		"ua"		"Поставити рейтинг {1} {2} карті: {3} ?"
+		"zho"		"評價 {1} {2} 給地圖: {3} ?"
+		"chi"		"评分 {1} {2} 给地图: {3} ?"
+	}
+	"mark_set_success"
+	{
+		"#format"	"{1:i},{2:t},{3:s}"
+		"en"		"{cyan}Map: {green}{3} {cyan}received a rating: {orange}{1} {2}"
+		"ru"		"{cyan}Карта: {green}{3} {cyan}получила рейтинг: {orange}{1} {2}"
+		"ua"		"{cyan}Карта: {green}{3} {cyan}отримала рейтинг: {orange}{1} {2}"
+		"zho"		"{cyan}地圖: {green}{3} {cyan}獲得評價: {orange}{1} {2}"
+		"chi"		"{cyan}地图: {green}{3} {cyan}获得评分: {orange}{1} {2}"
+	}
+	"veto"
+	{
+		"en"		"Current vote is vetoed by %N"
+		"ru"		"%N наложил вето на голосование"
+		"ua"		"%N наклав вето на голосування"
+		"zho"		"目前的票被 %N 否決"
+		"chi"		"%N 强制否决了投票"
+	}
+	"votepass"
+	{
+		"en"		"Current vote is passed by %N"
+		"ru"		"%N принудительно продвинул голосование"
+		"ua"		"%N примусово просунув голосування"
+		"zho"		"目前的投票通過 %N"
+		"chi"		"%N 强制通过了投票"
+	}
+	"too_often"
+	{
+		"en"		"You can't vote too often!"
+		"ru"		"Вы не можете голосовать слишком часто!"
+		"ua"		"Ви не можете голосувати занадто часто!"
+		"zho"		"您不能頻繁投票!"
+		"chi"		"您不能频繁投票!"
+	}
+	"vote_failed"
+	{
+		"en"		"{cyan}Vote for map {orange}is failed"
+		"ru"		"{cyan}Голосование за карту {orange}провалилось"
+		"ua"		"{cyan}Голосування за карту {orange}провалилося"
+		"zho"		"{cyan}地圖投票 {orange}失敗"
+		"chi"		"{cyan}地图投票 {orange}失败"
+	}
+	"vote_mark_failed"
+	{
+		"en"		"{cyan}Vote for rating {orange}is failed"
+		"ru"		"{cyan}Голосование за рейтинг {orange}провалилось"
+		"ua"		"{cyan}Голосування за рейтинг {orange}провалилося"
+		"zho"		"{cyan}評價投票 {orange}失敗"
+		"chi"		"{cyan}评分投票 {orange}失败"
+	}
+	"vote_success"
+	{
+		"#format"	"{1:s},{2:s},{3:i},{4:i}"
+		"en"		"{green}Changing the map: {white}[{orange}{3}/{4}{white}]  {cyan}{1} - {2}"
+		"ru"		"{green}Смена карты: {white}[{orange}{3}/{4}{white}]  {cyan}{1} - {2}"
+		"ua"		"{green}Зміна карти: {white}[{orange}{3}/{4}{white}]  {cyan}{1} - {2}"
+		"zho"		"{green}正在更換地圖: {white}[{orange}{3}/{4}{white}]  {cyan}{1} - {2}"
+		"chi"		"{green}正在更换地图: {white}[{orange}{3}/{4}{white}]  {cyan}{1} - {2}"
+	}
+	"no_access"
+	{
+		"en"		"No access!"
+		"ru"		"Нет доступа!"
+		"ua"		"Немає доступу!"
+		"zho"		"沒有權限!"
+		"chi"		"没有权限!"
+	}
+	"invalid_map"
+	{
+		"en"		"Cannot change map. Invalid"
+		"ru"		"Не могу сменить карту. Неверная"
+		"ua"		"Не можу змінити карту. Невірна"
+		"zho"		"指令無效，更換地圖失敗。"
+		"chi"		"指令无效，更换地图失败"
+	}
+	"no_points"
+	{
+		"en"		"Not enough points"
+		"ru"		"Недостаточно очков"
+		"ua"		"Недостатньо очок"
+		"zho"		"積分不足"
+		"chi"		"积分不足"
+	}
+	"no_time"
+	{
+		"en"		"Not enough play time"
+		"ru"		"Недостаточно игрового времени"
+		"ua"		"Недостатньо ігрового часу"
+		"zho"		"遊戲時間不足"
+		"chi"		"游戏时间不足"
+	}
+	"random_map"
+	{
+		"en"		"Random map"
+		"ru"		"Случайная карта"
+		"ua"		"Випадкова карта"
+		"zho"		"隨機地圖"
+		"chi"		"随机地图"
+	}
+}

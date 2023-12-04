@@ -1,0 +1,289 @@
+/*
+	Map groups description:
+	0 - test group
+	1 - group 1
+	2 - group 2
+	
+	ChangeLog:
+	
+	v.1.0
+	 - Initial release
+
+	v.1.1
+	 - Added rating system
+
+	v.1.2
+	 - Added vote for non-admins
+
+	v.1.3
+	 - Temporarily removed vote functions
+
+	v.1.4
+	 - Vote is binded to !votemap command
+	 - Added msg to @all about selected campaign name
+	 - Disabled "The last stand" campaign item menu (for safe reason).
+	 - Added ability to use "Rating" functionality for VIPs (flag "o")
+
+	v.1.5 (06-Oct-2018)
+	 - Added translation into English
+
+	v.1.6 (06-Oct-2018)
+	 - Fixed non-essential error in menu handler
+	 
+	v.1.7 (21-Nov-2018)
+	 - Added support of L4D2 (though, not tested).
+	 - Added ability to see current played map/campaign display name.
+	 - Added ability to vote for setting mark on campaign by non-privilaged users
+	 (new settings "g_hConVarVoteMarkMinPlayers.IntValue" - to set minimum number of clients to start the vote for mark).
+	 - Added restriction to run plugin by L4d(1,2) servers only.
+	 - Little optimizations and refactoring utilizing StringMaps and inline translation.
+	 - Removed dependency on basevotes.smx plugin.
+ 	 - Fixed wrong buffer size.
+ 	 
+ 	 v.1.8 (24-Nov-2018)
+ 	 - Fixed menu map order
+	 
+	 v.1.9 (09-Feb-2019)
+	 - Added checking is map exist before displaying list of campaigns.
+	 - Added a MapChanger.txt config file with a lot of custom maps for L4d1.
+	 
+	 v.1.10 (24-Feb-2019)
+	 - Added checking the number of campaigns in each group before displaying it (to hide empty groups).
+	 - Added !veto and !votepass commands for admin to bypass current vote (required ADMFLAG_VOTE flag).
+	 - Added !maps_reload to refresh the list of maps from config file.
+	 - Added current number / total number of maps inside current played campaign in the title if !maps menu for more easily tracking game process (for custom maps only).
+	 - Added define CUSTOM_MAPS_ADMIN_ONLY to allow change maps to custom for admins only.
+	 
+	 v.1.11 (11-Apr-2019)
+	 - Fixed security issue in admin check
+	 - Added restriction for repeated vote (interval: 1 min.)
+	 - Added logging of all map changing vote actions to logs/vote_map.log
+	 - Map change is now only allowed for admins with flag "k" (ADMFLAG_VOTE), or when only 1 player exists on server.
+	 
+	 v.1.12 (10-May-2019)
+	 - Added ability to choose vote access flag for default and for custom map.
+	 - Added ability to rename (append campaign name) to server name, when current map is changed to custom.
+	 // (???) - Added safer way to change map, using entity (thanks to Lux).
+	 - Now, to inform players, center screen message is appearing for 5 sec. before actual changing the map (if number of players > 1).
+	 - Added "callvote" redirection to sm_maps
+	 
+	 v.1.13
+	 - Converted to methodmaps
+	 
+	 v.1.14 (19-Feb-2020)
+	 - Added "l4d_mapchanger_delay" ConVar: Minimum delay (in sec.) allowed between votes
+	 - Added "l4d_mapchanger_timeout" ConVar: How long (in sec.) does the vote last
+	 - Added "l4d_mapchanger_announcedelay" ConVar: Delay (in sec.) between announce and vote menu appearing
+	 - Added "l4d_mapchanger_allow_custom" ConVar: Display custom maps menu items? (1 - Yes, 0 - No)
+	 - Added "l4d_mapchanger_servername_short" ConVar: Short name of your server (specify it, if you want custom campaign name will be prepended to it)
+	 - Added "l4d_mapchanger_votemark_minplayers" ConVar: Minimum number of players to allow starting the vote for mark
+	 - Added "l4d_mapchanger_default_voteaccess" ConVar: Flag allowed to access the vote for change to default maps. By default: "k" (StartVote)
+	 - Added "l4d_mapchanger_custom_voteaccess" ConVar: Flag allowed to access the vote for change to custom maps. By default: "k" (StartVote)
+	 - Fixed sm_veto, sm_votepass
+	 - optimizations
+	 - Added "Proper change level" to prevent memory leak in L4D2 (by Lux), added similar fix for L4D1 just in case
+	 - new #define PRIVATE_STUFF 1 - to unlock some private options, e.g. specify nicknames for disallow voting.
+	 
+	 v.1.15 (07-Mar-2020)
+	 - Removed "Proper change level" method from l4d1 since it produce some strange behaviour.
+	 - Config files are renamed and splitted: configs/MapChanger.txt =>
+	 * MapChanger.l4d1.txt
+	 * MapChanger.l4d2.txt
+	 - L4D1 custom maps config is appended with a lot of campaigns.
+	 - L4D2 custom maps config is filled with campaigns from "Installer Extra Campaigns" tool by dr.lex:
+	 https://www.gamemaps.com/details/21899
+	 
+	 v.1.16 (12-Mar-2020)
+	 - Fixed L4D1 Windows support.
+	 - Attempt to add 'listen servers' support.
+	 
+	 v.1.17 (20-Apr-2020)
+	 - Added alternate method for changing map if first attempt failed.
+	 - Added force mission change when finale win.
+	 - Added command "!mapnext" - for ROOT admin allowing to change map to next level (or next campaign, if this is the last level).
+	 - fixed MapChanger.l4d1.txt incorrect syntax, updated custom maps list.
+	 - for custom maps: correct gamemode is selected now.
+	 
+	 1.18 (27-Aug-2020)
+	 - Fixed flags access ConVars are misplaced.
+	 
+	 1.19 (29-Nov-2020)
+	 - Added "The Last Stand" maps.
+	 - IsMapValid() replaced by FindMap() to prevent undefined behaviour.
+	 - Removed unused signatures.
+
+	 2.0 Beta (17-Mar-2021)
+	 - Addon maps is now automatically parsed. You no longer need manually write map names in config file! Damaged mission files are supported! (thanks to Rikka for idea)
+	 - Finale map finish (credits screen) is now tracked accurately (without a timer).
+	 
+	 2.1 Beta (23-Mar-2021) 
+	 - UM Compatibility with L4D2.
+	 
+	 2.2 Beta (01-May-2021) 
+	 - Blocked commands "callvote ChangeChapter" and "callvote ReturnToLobby".
+	 - "ReturnToLobby" UserMessage is redirected to force change next map.
+	 - Added item "All maps".
+	 
+	 2.3 Beta (08-May-2021)
+	 - Added ConVar "l4d_mapchanger_fin_map_random" - Choose the next map of custom campaign randomly? (1 - Tes, 0 - No)
+	 
+	 2.4 Beta (09-May-2021)
+	 - Fix for previous update.
+	 - Added human readable map and campaign display names is vote hints.
+	 - Speed optimization (prevented custom campaigns re-parse on map start if they didn't change).
+	 
+	 2.5 (15-May-2021)
+	 - Full support for L4D2.
+	 - Improved custom maps parser.
+	 - Autoreloading category root items when you changed category of the map.
+	 - Added ConVar "l4d_mapchanger_vetoaccess" - Flag(s) allowed to veto/votepass the vote.
+	 - PRIVATE_STUFF is moved to a separate file: data/mapchanger_vote_block.txt (allows to specify steam id and names with mask for users you want to black list vote access for).
+	 - Added more checks is map valid.
+	 - Logging to server when map is about to change.
+	 
+	 2.6 (03-Jun-2021)
+	 - Fixed throwing error "Invalid key value handle 0" on server reboot.
+	 - Added optional compatiblity with "HX Stats Remastered (fork by Dragokas)":
+	 * new ConVar "l4d_mapchanger_vote_stat_points" - Minimum points in statistics system required to allow start the vote.
+	 * new ConVar "l4d_mapchanger_vote_stat_playtime" - Minimum play time (in minutes) in statistics system required to allow start the vote.
+	 (you should have hx_stats.inc file in /scripting/include folder of compiler in order this feature to start work)
+
+	 2.7 (20-Jun-2021)
+	 - Fixed throwing keyvalues error when server has no addon maps.
+
+	 2.8 (06-Sep-2021)
+	 - Added Traditional Chinese translation (thanks to in2002).
+	 
+	 2.9 (11-Sep-2021)
+	 - Added ConVar "l4d_mapchanger_show_chapter_list" - default:1 - Show the list of chapters within campaign? (1 - Yes, 0 - No) (on in2002 request)
+	 - Added ConVar "l4d_mapchanger_finale_change_type" - default:12 (on sxtszx and ricksfishin requests)
+	  * 0 - Don't change finale map (drop to lobby);
+	  * 1 - instant on vehicle leaving;
+	  * 2 - instant on finale win;
+	  * 4 - Wait till credits screen appear;
+	  * 8 - Wait till credits screen ends
+	  * (values can be combined)
+	 - Changed priority of "Name" / "DisplayTitle" keys selection in attempt to fix Precinct84 campaing title name (thanks to Neki93 for report).
+	 
+	 2.10 (12-Sep-2021)
+	 - Give preference to "Name" key in missions.txt if "DisplayTitle" starts from the link "$name" which I don't know how to de-reference at the moment.
+	 
+	 2.11 (24-Sep-2021)
+	 - Switched change map method back to using ForceChangeLevel (in L4D2) instead of CDirector::OnChangeChapterVote due to causing "all survivors dead" bug:
+	 * observed when a single player used !slay @me on c1m4_atrium map (thanks to ururu for reporting)
+	 * the reversion will cause possible memory leaks (same with sm_map command), so more frequent server reboots are recommended.
+	 * hopefully, somebody finds a normal way to change map in L4D2 game.
+	 - Removed reserve method for delayed changing map via "changelevel" to prevent possible bugs.
+	 
+	 2.12 (11-Oct-2021)
+	 - Added ConVar "l4d_mapchanger_vip_voteaccess" - Allow VIP players to change the map? (1 - Yes, 0 - No)
+	 *VIP means VIP-core by R1KO.
+	
+	 2.13 (13-Oct-2021)
+	 - Players with any admin flag is no more checked against HX Points / Play time limit to be able to start the vote.
+
+	 2.14 (06-Dec-2021)
+	 - Added simplified Chinese translation (thanks to sorallll).
+	 - Fixed compilation warnings on SM 1.11.
+
+	2.15 (20-Dec-2021)
+	 - Bugfix: return to lobby didn't work when ConVar "l4d_mapchanger_finale_change_type" has 0 value (thanks to @thewintersoldier97 for reporting).
+	
+	2.16 (04-Jan-2022)
+	 - Introduced sorting in alphabetical order for all custom campaigns.
+	 - Added ConVar "l4d_mapchanger_server_print_info" - Print map change info to server console? (1 - Yes, 0 - No).
+	 - More translation phrases are added.
+	
+	2.17 (07-Jan-2022)
+	 - Code clean, gamedata is removed.
+	 
+	2.18 (15-Jan-2022)
+ 	 - Added item "Random map" (in all menus, excluding default maps).
+ 	 
+ 	2.19 (29-Jan-2022)
+ 	 - Added protection to finale map change in case map is removed in mid-game (thanks to @AK978 for report).
+ 	 - Added protection from adding default maps which doesn't exist on the server.
+ 	 
+ 	2.20 (29-Jan-2022)
+ 	 - Added beta-support of listen servers (thanks to @Marttt).
+ 	
+ 	2.21 (31-Jan-2022)
+ 	 - [Cycle] Previously played custom campaigns are no more added to random map cycle (thanks to @AK978 for suggestion).
+ 	 - [Fix] Fixed bug with potential double map change.
+ 	 - [Fix] Prevented sm_mapnext command from following "select random map" settings.
+ 	 - [New] Added ConVars to control whether specific native votes are allowed to use (by default: all disabled for security reason):
+ 	 > "l4d_native_vote_allow_change_mission" - Allow to use native votes to change mission? (0 - No, replace by MapChanger menu; 1 - Yes)
+ 	 > "l4d_native_vote_allow_change_chapter" - Allow to use native votes to change chapter? (0 - No, replace by MapChanger menu; 1 - Yes).
+ 	 > "l4d_native_vote_allow_restart_game" - Allow to use native votes to restart game? (0 - No, replace by MapChanger menu; 1 - Yes).
+ 	 > "l4d_native_vote_allow_return_lobby" - Allow to use native votes to return to lobby? (0 - No, replace by MapChanger menu; 1 - Yes).
+ 	 * Now, you can remove recommended ConVars "sv_vote_issue_*" from server.cfg, because they are included in plugin.
+ 	 - [Menu] Preserves selected menu page when you click "Back" button.
+ 	 - [Parser] Improved "clear" of map title numbering.
+ 	 - [Speed] Optimizations:
+ 	 * Buffer size for campaign title has decreased: 128 => 64.
+ 	 * Lot of hardcoded buffer sizes have replaced by "const".
+ 	 
+ 	3.0 (15-Feb-2022)
+ 	 - [New] Added support of "versus" and "survival" game modes.
+ 	 - [New] Implemented experimental Localizer engine - to make dynamic multilingual translation of #phrases *.
+ 	 - Removed most of translation file in favor of Localizer.
+ 	 - Removed hardcoded missions list of default maps. They are parsed automatically.
+ 	 - [Fix] Some addon maps with #TITLE in display name is now displayed correctly - they are extracted from appropriate vpk addon #phrases via Localizer.
+ 	 - Some refactoring which aimed to improve performance.
+ 	 - Simplified Chinese translation is updated (thanks to @sorallll).
+ 	 - Added number of map in menu of default campaign.
+ 	 - Prevented adding custom maps to the list if they are inaccessible to server.
+ 	 * You may note some delay ~ 30-60 sec. until you can fully use MapChanger due to populating Localizer database once.
+ 	
+ 	3.2 (22-Sep-2022)
+ 	 - Fixed buffer size for various menus.
+ 	 - Added semi-async to Localizer's consumer to prevent "script timed out" (thanks to @liaoyia, @thewintersoldier97, @in2002 for reports and new tests).
+  	 - Added notification message before a change map, having: campaign & map (chapter) name, map index and total maps count.
+ 	 - Added ability to set delay before the map is actually changed to have time to read the notification message.
+ 	 - Added ability to fallback to default (standard) campaign on finale of custom campaign (on @shinubee, @James William Bottomtooth requests).
+ 	 - Added ability to auto-change to random default (standard) campaign on finale of default campaign.
+  	 - Added ability to define black list of maps, you don't want to include in map cycle.
+ 	 - ConVar "l4d_mapchanger_fin_map_random" is deprecated and deleted.
+ 	 - New ConVar "l4d_mapchanger_nextmap_on_standard" - Which next campaign to use (on finale chapter of standard campaign)? (0 - next standard, 1 - random standard)
+ 	 - New ConVar "l4d_mapchanger_nextmap_on_custom" - Which next campaign to use (on finale chapter of custom campaign)? (0 - next standard, 1 - random standard, 2 - next custom, 3 - random custom)
+ 	 - New ConVar "l4d_mapchanger_votemark_access" - Flag(s) allowed to start the vote for mark (rating). Leave empty to allow everybody.
+ 	 - New ConVar "l4d_mapchanger_remove_mark_access" - Flag(s) allowed to remove the rating.
+ 	 - New ConVar "l4d_mapchanger_mapchange_notify_time" - Delay before actual change map.
+ 	 - Added notification message about vote mark (rating) results.
+ 	 - Added protection against too often vote for rating.
+ 	 - Added multi-byte letters clear for campaign names to walkaround bug with Valve KeyValues for such maps as: "Storm Collection" (thanks to @in2002 for report).
+ 	 - Added case normalization of displayed campaign & map names (thanks to @komashchenko for UTF8 strings stock).
+ 	 - Improved sorting of compaigns due to above normalization.
+ 	 - Improved clearing of mission title numbering.
+ 	 - Improved errors color formatting.
+	 - Inserted more safe checks in code.
+	 - Fixed bug: campaign cannot be moved among the groups (since v3.0) (thanks to @3ipKa for investigation).
+ 	 - Fixed bug: campaign lost the rating if it's moved to other group (since v3.0).
+ 	 - Fixed bug: rating data file get re-written when plugin reloaded (since v3.0).
+ 	 - Partial support of server-side addonlist.txt
+	 - 1st forum post is significantly updated.
+ 	 - Improved translation (Russian).
+	 - Added translation into Ukrainian.
+
+	3.3 (23-Sep-2022)
+	 - Fixed issue "Could not send a usermessage" when attempt to print message in OnCreditsScreen callback.
+
+	3.4 (29-Sep-2022)
+	 - Fixed broken translation of campaigns due to excessive names normalization in previous fix.
+
+	3.5 (23-Oct-2022)
+	 - Fixed issue "Could not send a usermessage" when attempt to print message in OnDisconnectToLobby callback.
+ 	 
+	3.6 (24-Oct-2022)
+	 - Fix for previous fix - do not request frame when change map from attempt to disconnect to lobby. 
+ 	
+ 	3.7 (16-Apr-2023)
+ 	 - Fixed campaign titles displayed with stripped numbers.
+ 	 - Added listener for ConVar "l4d_mapchanger_servername_short".
+ 	
+ 	 //TODO:
+ 	 - API
+ 	 - Added command !rtv and aliases !vnext, !votenext to start the vote for next campaign. Command is executed automatically when finale vehicle is arriving.
+ 	 - check mm_dedicated_force_servers
+*/
+
