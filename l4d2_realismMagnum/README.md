@@ -1,7 +1,7 @@
 # [[L4D2] Real .50AE bullets/Magnum pistol](https://forums.alliedmods.net/showthread.php?t=340579)
 
 ## About
-[Source](https://forums.alliedmods.net/showthread.php?t=340579]
+[Source](https://forums.alliedmods.net/showthread.php?t=340579)
 
 ## ConVars
 ```

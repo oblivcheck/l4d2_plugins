@@ -1,5 +1,6 @@
 # About
 Source: [[L4D] Survivor Spawn Position Fix](https://forums.alliedmods.net/showthread.php?t=338572)
+
 Modified version on my own server.
 
 只需要这个插件的控制台命令作为服务器菜单内的一项功能，(不完全的)移除了该插件的自动检测功能.
