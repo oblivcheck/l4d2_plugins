@@ -9,7 +9,7 @@
 #define PLUGIN_URL              "https://forums.alliedmods.net/showthread.php?p=2810611"
 
 /*	Changes Log
-2023-11-13 (1.4)
+2023-12-13 (1.4)
 	- EMS HUD support, requested by "S.A.S".
 	- If the player's name is too long, it will be truncated.
 	- New ConVars: l4d2_voiceviewer_name_max_length, l4d2_voiceviewer_emshud_Slot, l4d2_voiceviewer_emshud_XYWH, l4d2_voiceviewer_emshud_HUDBG
