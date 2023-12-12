@@ -1,7 +1,7 @@
 # [Voice Viewer](https://forums.alliedmods.net/showthread.php?t=344047)
 
 ## Features
-- Show who is talking (center text or hint text)。
+- Show who is talking (EMS HUD, Center text, Hint text).
 
 - Limit voice time.
 
@@ -28,8 +28,8 @@ l4d2_voiceviewer_emshud_Slot "1"
 // X,Y position and Width and Height, See:
 // https://developer.valvesoftware.com/wiki/L4D2_EMS/Appendix:_HUD
 // -
-// Default: "0.0 1.75 1.0 0.2"
-l4d2_voiceviewer_emshud_XYWH "0.0 1.75 1.0 0.2"
+// Default: "0.0 0.75 1.0 0.05"
+l4d2_voiceviewer_emshud_XYWH "0.0 0.75 1.0 0.05"
 
 // If the byte length of the player's name exceeds a certain value, it will be truncated.
 // Int Value, Do NOT larger than 48.
@@ -77,7 +77,8 @@ l4d2_voiceviewer_type "2"
 ~~~
 2023-11-13 (1.4)
         - EMS HUD support, requested by "S.A.S".
-        - New ConVars: l4d2_voiceviewer_emshud_name_max_length, l4d2_voiceviewer_emshud_Slot, l4d2_voiceviewer_emshud_XYWH, l4d2_voiceviewer_emshud_HUDBG
+        - If the player's name is too long, it will be truncated.
+        - New ConVars: l4d2_voiceviewer_name_max_length, l4d2_voiceviewer_emshud_Slot, l4d2_voiceviewer_emshud_XYWH, l4d2_voiceviewer_emshud_HUDBG
         - New config file: data/l4d2_voiceviewer.txt
         - Some code adjustments && ConVar default value adjustments.
 
@@ -95,5 +96,4 @@ l4d2_voiceviewer_type "2"
 
 2023-09-27 (1.0)
         - Initial version.
-
-
+~~~

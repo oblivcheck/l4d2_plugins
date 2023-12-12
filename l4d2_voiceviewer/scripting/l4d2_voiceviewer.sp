@@ -11,7 +11,8 @@
 /*	Changes Log
 2023-11-13 (1.4)
 	- EMS HUD support, requested by "S.A.S".
-	- New ConVars: l4d2_voiceviewer_emshud_name_max_length, l4d2_voiceviewer_emshud_Slot, l4d2_voiceviewer_emshud_XYWH, l4d2_voiceviewer_emshud_HUDBG
+	- If the player's name is too long, it will be truncated.
+	- New ConVars: l4d2_voiceviewer_name_max_length, l4d2_voiceviewer_emshud_Slot, l4d2_voiceviewer_emshud_XYWH, l4d2_voiceviewer_emshud_HUDBG
 	- New config file: data/l4d2_voiceviewer.txt
 	- Some code adjustments && ConVar default value adjustments.
 
@@ -134,9 +135,9 @@ public void OnPluginStart()
 	g_hInterval = CreateConVar("l4d2_voiceviewer_interval", "0.5", "Check interval.");
 	g_hType = CreateConVar("l4d2_voiceviewer_type", "2", "Where to print voice messages?\n0 = Disable, 1= EMS HUD, 2 = HintText, 4 = CenterText; Add to get all");
 //	g_hTitle = CreateConVar("l4d2_voiceviewer_emshud_title", "正在说话的玩家 🔊", "");
-	g_hNameLen = CreateConVar("l4d2_voiceviewer_emshud_name_max_length", "16", "If the byte length of the player's name exceeds a certain value, it will be truncated.\nInt Value, Do NOT larger than 48.");
-	g_hSlot = CreateConVar("l4d2_voiceviewer_emshud_Slot", "1", "EMS HUD Slot used for display, See:\nhttps://developer.valvesoftware.com/wiki/L4D2_EMS/Appendix:_HUD\n");
-	g_hXYWH = CreateConVar("l4d2_voiceviewer_emshud_XYWH", "0.0 1.75 1.0 0.2", "X,Y position and Width and Height, See:\nhttps://developer.valvesoftware.com/wiki/L4D2_EMS/Appendix:_HUD");
+	g_hNameLen = CreateConVar("l4d2_voiceviewer_name_max_length", "16", "If the byte length of the player's name exceeds a certain value, it will be truncated.\nInt Value, Do NOT larger than 48.");
+	g_hSlot = CreateConVar("l4d2_voiceviewer_emshud_Slot", "1", "EMS HUD Slot used for display, See:\nhttps://developer.valvesoftware.com/wiki/L4D2_EMS/Appendix:_HUD\nhttps://github.com/oblivcheck/l4d2_plugins/blob/eb43f95fd4e60bbfdaff84616221ac8367d2ec7f/l4d2_voiceviewer/scripting/l4d2_voiceviewer.sp#L46-L90");
+	g_hXYWH = CreateConVar("l4d2_voiceviewer_emshud_XYWH", "0.0 0.75 1.0 0.05", "X,Y position and Width and Height, See:\nhttps://developer.valvesoftware.com/wiki/L4D2_EMS/Appendix:_HUD");
 	g_hHUDBG = CreateConVar("l4d2_voiceviewer_emshud_HUDBG", "0", "1 = Draw a black background for the selected EMS HUD Slot.(Check XYWH)\nNote: You need to rejoin the target server for this change to take effect on the client.");
 
 	g_bEnable = g_hEnable.BoolValue;
