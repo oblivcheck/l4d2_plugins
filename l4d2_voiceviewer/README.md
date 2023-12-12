@@ -12,6 +12,31 @@
 // ConVars for plugin "l4d2_voiceviewer.smx"
 
 
+// 1 = Draw a black background for the selected EMS HUD Slot.(Check XYWH)
+// Note: You need to rejoin the target server for this change to take effect on the client.
+// -
+// Default: "0"
+l4d2_voiceviewer_emshud_HUDBG "0"
+
+// EMS HUD Slot used for display, See:
+// https://developer.valvesoftware.com/wiki/L4D2_EMS/Appendix:_HUD
+// https://github.com/oblivcheck/l4d2_plugins/blob/eb43f95fd4e60bbfdaff84616221ac8367d2ec7f/l4d2_voiceviewer/scripting/l4d2_voiceviewer.sp#L45-L89
+// -
+// Default: "1"
+l4d2_voiceviewer_emshud_Slot "1"
+
+// X,Y position and Width and Height, See:
+// https://developer.valvesoftware.com/wiki/L4D2_EMS/Appendix:_HUD
+// -
+// Default: "0.0 1.75 1.0 0.2"
+l4d2_voiceviewer_emshud_XYWH "0.0 1.75 1.0 0.2"
+
+// If the byte length of the player's name exceeds a certain value, it will be truncated.
+// Int Value, Do NOT larger than 48.
+// -
+// Default: "16"
+l4d2_voiceviewer_emshud_name_max_length "16"
+
 // Enable or Disable
 // -
 // Default: "1"
@@ -25,17 +50,17 @@ l4d2_voiceviewer_interval "0.5"
 // Time limit for sending voice.
 // Time(s) = l4d2_voiceviewer_interval * l4d2_voiceviewer_limit
 // -
-// Default: "60"
-l4d2_voiceviewer_limit "60"
+// Default: "90"
+l4d2_voiceviewer_limit "90"
 
 // Time to wait for restrictions to be lifted
 // Time(s) = l4d2_voiceviewer_interval * l4d2_voiceviewer_reset
 // -
-// Default: "240"
-l4d2_voiceviewer_reset "240"
+// Default: "90"
+l4d2_voiceviewer_reset "90"
 
 // Where to print voice messages?
-// 0 = Disable, 2 = HintText, 4 = CenterText; Add to get all
+// 0 = Disable, 1= EMS HUD, 2 = HintText, 4 = CenterText; Add to get all
 // -
 // Default: "2"
 l4d2_voiceviewer_type "2"
@@ -50,17 +75,25 @@ l4d2_voiceviewer_type "2"
 
 ## Chnages Log
 ~~~
+2023-11-13 (1.4)
+        - EMS HUD support, requested by "S.A.S".
+        - New ConVars: l4d2_voiceviewer_emshud_name_max_length, l4d2_voiceviewer_emshud_Slot, l4d2_voiceviewer_emshud_XYWH, l4d2_voiceviewer_emshud_HUDBG
+        - New config file: data/l4d2_voiceviewer.txt
+        - Some code adjustments && ConVar default value adjustments.
+
 2023-10-01 (1.3)
-- Fixed: Client is not in game.
+        - Fixed: Client is not in game.
 
 2023-09-28 (1.2)
-- Limits are no longer reset during chapter transitions.
-- Fixed: multiple identical timers accidentally created.
-- Fixed: after the plugin is disable, it will have no effect when it is enabled again.
-- Changed wrong comment: l4d2_voiceviewer_reset(Time(s) = l4d2_voiceviewer_interval * l4d2_voiceviewer_reset).
+        - Limits are no longer reset during chapter transitions.
+        - Fixed: multiple identical timers accidentally created.
+        - Fixed: after the plugin is disable, it will have no effect when it is enabled again.
+        - Changed wrong comment: l4d2_voiceviewer_reset(Time(s) = l4d2_voiceviewer_interval * l4d2_voiceviewer_reset).
 
 2023-09-28 (1.1)
-- Added translation files provided by "Peter Brev", including new English translation and French translation.
+        - Added translation files provided by "Peter Brev", including new English translation and French translation.
 
 2023-09-27 (1.0)
-- Initial version.
+        - Initial version.
+
+
