@@ -6,6 +6,7 @@
 		"en"	"{1} is talking."
 		"fr"	"{1} est en train de parler."
 		"chi"	"{1} 正在说话"
+		"ru"	"{1} говорят."
 	}
 	"ChatAll"
 	{
@@ -13,6 +14,7 @@
 		"en"	"{1} has been automatically muted, because he has talked for too long."
 		"fr"	"{1} a été placé en sourdine car il a parlé trop longtemps."
 		"chi"	"{1} 已被自动静音，因为太长时间没有中断过语音发送."
+		"ru"	"{1} был автоматически замучен за долгий разговор."
 	}
 	"Chat"
 	{
@@ -20,11 +22,13 @@
 		"en"	"Lifting restriction in {1} seconds after you stop sending voice messages."
 		"fr"	"Les restrictions seront levées dans {1} secondes une fois que vous aurez cessé d'envoyer des messages vocaux."
 		"chi"	"在你停止发送语音消息的 {1} 秒后，限制将解除."
+		"ru"	"Вам будет наложено ограничение через {1} секунд,если не прекратите разговор."
 	}	
 	"Restrictions lifted"
 	{	
 		"en"	"Your voice restriction has been lifted."
 		"fr"	"Les restrictions ont été levées."
 		"chi"	"你的语音限制已被解除."
+		"ru"	"Ограничение по голосовому чату снято."
 	}
 }
