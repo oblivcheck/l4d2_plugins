@@ -89,6 +89,10 @@ safedoor_scavenge_spawn_delay "80.0"
 
 ## Changes Log
 ~~~
+(1.0 based 1.0.5fork)
+2024-01-03
+- Lots of changes, latest version on my server.
+
 (1.0.5fork)
 
 2023-10-?

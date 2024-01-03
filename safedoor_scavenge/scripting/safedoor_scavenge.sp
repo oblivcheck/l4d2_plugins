@@ -6,6 +6,34 @@
 #include <dhooks>
 #include <left4dhooks>
 
+#define PLUGIN_NAME             "Safe Door Scavenge"
+#define PLUGIN_DESCRIPTION      "不想让多人服务器变成跑图比赛"
+#define PLUGIN_VERSION          "1.0 (fork by version 1.0.5)"
+#define PLUGIN_AUTHOR           "sorallll, oblivcheck/Iciaria"
+#define PLUGIN_URL              "https://github.com/oblivcheck/l4d2_plugins/tree/master/safedoor_scavenge"
+
+public Plugin myinfo = 
+{
+	name =		PLUGIN_NAME,
+	author =	PLUGIN_AUTHOR,
+	description =	PLUGIN_DESCRIPTION,
+	version =	PLUGIN_VERSION,
+	url =		PLUGIN_URL
+}
+
+
+#define		SDS_Music		"music/scavenge/level_09_01.wav"
+#define		SDS_Hint		"ui/gascan_spawn.wav"
+#define		SDS_Music_F		"music/scavenge/gascanofvictory.wav"
+//#define		SDS_Music_FF		"music/wam_music.mp3"
+#define		SDS_Music_FF		"music/zombat/not_a_laughing_matter.wav"
+
+#define 	MODEL_SHIELD "models/props_unique/airport/atlas_break_ball.mdl"
+
+#define 	ReactionTime	8.0
+
+#define		USERANGE		128.0
+
 // https://developer.valvesoftware.com/wiki/List_of_L4D_Series_Nav_Mesh_Attributes:zh-cn
 #define NAV_MESH_MOSTLY_FLAT	536870912
 #define TERROR_NAV_CHECKPOINT	2048
@@ -68,6 +96,8 @@ int
 	g_iNext_NumCansNeeded;
 
 int	g_iSpawnGroupCount = 1;
+int	g_iShield[MAXPLAYERS+1];
+int	g_iTankid[MAXPLAYERS+1];
 
 float
 	g_fGascanUseRange,
@@ -88,12 +118,8 @@ bool
 	g_bBlockOpenDoor,
 	g_bAllowMultipleFill,
 	g_bStartSpawnGascans,
-	g_bIsNextSpawnReq;
-
-#define		SS_Music		"music/scavenge/level_09_01.wav"
-#define		SS_Hint			"ui/gascan_spawn.wav"
-#define		SS_Music_F		"music/scavenge/gascanofvictory.wav"
-#define		USERANGE		128.0 // plugin .def 128.0
+	g_bIsNextSpawnReq,
+	g_bAllowSpawnTank;
 
 methodmap CNavArea
 {
@@ -171,15 +197,6 @@ methodmap CNavArea
 	}
 };
 
-public Plugin myinfo = 
-{
-	name = 			"Safe Door Scavenge",
-	author = 		"sorallll, Spokzooy/Iciaria",
-	description = 	"",
-	version = 		"1.0.5fork",
-	url = 			""
-}
-
 public void OnPluginStart()
 {
 	vLoadGameData();
@@ -228,6 +245,7 @@ public void OnPluginStart()
 	HookEvent("weapon_drop", Event_WeaponDrop);
 
 	RegAdminCmd("sm_sd", cmdSd, ADMFLAG_ROOT, "Test");
+
 }
 
 Action cmdSd(int client, int args)
@@ -284,14 +302,19 @@ public void OnMapStart()
 	vLateLoadGameData();
 	PrecacheModel("models/props_junk/gascan001a.mdl", true);
 
-	PrefetchSound(SS_Music);
-	PrecacheSound(SS_Music);
+	PrefetchSound(SDS_Music);
+	PrecacheSound(SDS_Music);
 
-	PrefetchSound(SS_Hint);
-	PrecacheSound(SS_Hint);
+	PrefetchSound(SDS_Hint);
+	PrecacheSound(SDS_Hint);
 
-	PrefetchSound(SS_Music_F);
-	PrecacheSound(SS_Music_F);
+	PrefetchSound(SDS_Music_F);
+	PrecacheSound(SDS_Music_F);
+
+	PrefetchSound(SDS_Music_FF);
+	PrecacheSound(SDS_Music_FF);
+
+	PrecacheModel(MODEL_SHIELD, true);
 }
 
 public void OnMapEnd()
@@ -332,11 +355,18 @@ void vResetPlugin()
 	g_bStartSpawnGascans = false;
 	g_bIsNextSpawnReq = false;
 	g_iSkip = 0;
+
+	for(int i=0;i<MaxClients;i++)
+	{
+		g_iTankid[i] = 0;
+		g_iShield[i] = 0;
+	}
 }
 
 void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 {
 	g_bFirstRound = false;
+	g_bAllowSpawnTank = false;
 
 	int iLength = g_aScavengeItem.Length;
 	if(iLength > 0)
@@ -497,13 +527,19 @@ void vOnOpen(const char[] output, int caller, int activator, float delay)
 		// 设置标记，在OnGaneFrame()处理
 		g_bStartSpawnGascans = true;
 
-		EmitSoundToAll(SS_Hint, SOUND_FROM_PLAYER);
+		g_bAllowSpawnTank = true;
+
+		EmitSoundToAll(SDS_Hint, SOUND_FROM_PLAYER);
 		PrintToChatAll("\x04      ========Safe Door Scavenge=======");	
-		PrintToChatAll("\x04[SDS]\x05  %.f\x01 %t", g_fNextSpwanDelay, "First", g_iSpawnGroupCount + 1);
+		PrintToChatAll("\x04[SDS]\x05  %.f\x01 %t", g_fNextSpwanDelay * 2.0, "First", g_iSpawnGroupCount + 1);
+		PrintToChatAll("\x04[SDS]  一只Tank将很快生成...");
 		PrintToChatAll("\x04      ---------------------------------");
 
-		g_hSpawnGascanTimer = CreateTimer(g_fNextSpwanDelay, tSpawnGascan, _, TIMER_REPEAT);
-
+		g_hSpawnGascanTimer = CreateTimer(g_fNextSpwanDelay * 2.0, tSpawnGascan);
+		// 开启EMS HUD提示
+		HudSet(5);
+		UpdateHUD(5, "Tank即将降临在????的身边");
+		
 		// 创建加油指导提示
 		for(int i = 1; i <= MaxClients; i++)
 		{
@@ -518,10 +554,15 @@ void vOnOpen(const char[] output, int caller, int activator, float delay)
 
 		if(g_fScavengePanicTime)
 		{
+			// 生成Tank
+			CreateTimer(GetRandomFloat(0.0, g_fNextSpwanDelay / 4.0), tSpawnTank, _, TIMER_FLAG_NO_MAPCHANGE);
+
 			vExecuteCheatCommand("director_force_panic_event");
 
 			delete g_hPanicTimer;
-			g_hPanicTimer = CreateTimer(g_fScavengePanicTime, tmrScavengePanic, _, TIMER_REPEAT);
+			//g_hPanicTimer = CreateTimer(g_fScavengePanicTime, tmrScavengePanic, _, TIMER_REPEAT);
+			// 依据人数设置尸潮间隔
+			g_hPanicTimer = CreateTimer(GetPanicTime(), tmrScavengePanic, _, TIMER_REPEAT);
 		}
 	}
 
@@ -531,7 +572,51 @@ void vOnOpen(const char[] output, int caller, int activator, float delay)
 		RequestFrame(OnNextFrame_CloseDoor, EntIndexToEntRef(caller));
 	}
 
-	EmitSoundToAll(SS_Music, SOUND_FROM_PLAYER, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, NULL_VECTOR, NULL_VECTOR, true, 6.0);
+	EmitSoundToAll(SDS_Music, SOUND_FROM_PLAYER, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, NULL_VECTOR, NULL_VECTOR, true, 6.0);
+}
+
+float GetPanicTime()
+{
+	int count = GetPlayerNum();
+	if( count > 4)
+	{
+		return 60.0 - (float(count-4) * 4.0);
+	}
+	return 60.0;
+}
+
+int GetPlayerNum()
+{
+        int count;
+        for(int i =1; i<=MaxClients; i++)
+        {
+                //https://forums.alliedmods.net/archive/index.php/t-132438.html
+                if(IsClientConnected(i) )
+                {
+			if(IsClientInGame(i) )
+	                        if(!IsFakeClient(i) )
+        	                        count++;
+                }
+        }
+        return count;
+}
+
+Action tSpawnTank(Handle Timer)
+{
+	if(g_bAllowSpawnTank)
+	{
+//		PrintToChatAll("%d", GetAllPlayersInServer());
+		if(GetAllPlayersInServer() >= MaxClients)
+		{
+			CreateTimer(2.0, tSpawnTank, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+			return Plugin_Continue;
+		}
+
+		if(GetRandomFloat(0.00, 100.000) <= 66.000)
+			SpawnTank(true, 0.0);
+		else	SpawnTank(false, 0.0);
+	}
+	return Plugin_Continue;
 }
 
 public void OnGameFrame()
@@ -572,11 +657,17 @@ public void OnGameFrame()
 			// 只发出一次提示
 			if(g_iGameFrame_SpawnCount == 1)
 			{
-				EmitSoundToAll(SS_Hint, SOUND_FROM_PLAYER);
+				EmitSoundToAll(SDS_Hint, SOUND_FROM_PLAYER);
 				PrintToChatAll("\x04      --------------------");	
-				PrintToChatAll("\x04[SDS]\x01  %t \x05%d\x01 %t \x05%.f\x01 %t",  "Next_1", g_iSpawnGroupCount + 1, "Next_2", g_fNextSpwanDelay, "Next_3", g_iSpawnGroupCount + 2);	
+				PrintToChatAll("\x04[SDS]\x01  %t \x05%d\x01 %t \x05%.f\x01 %t",  "Next_1", g_iSpawnGroupCount + 1, "Next_2", g_fNextSpwanDelay, "Next_3", g_iSpawnGroupCount + 2);
+		//		PrintToChatAll("\x04[SDS]    注意：", g_fNextSpwanDelay);	
+		//		PrintToChatAll("\x04[SDS]\x01  一只\x05小Tank\x03可能\x01将在\x04%.f秒\x01内抵达...", g_fNextSpwanDelay);	
 				PrintToChatAll("\x04      --------------------");
 				g_iSpawnGroupCount++;
+		//		if(GetRandomFloat(0.000, 1000.000) > 500.000)
+		//		{
+		//			CreateTimer(GetRandomFloat(g_fNextSpwanDelay / 2.0, g_fNextSpwanDelay), tSpawnTank_Next, _, TIMER_FLAG_NO_MAPCHANGE);
+		//		}
 			}
 		}
 
@@ -584,7 +675,25 @@ public void OnGameFrame()
 	}
 }
 
+Action tSpawnTank_Next(Handle Timer)
+{
+	if(g_bAllowSpawnTank)
+		SpawnTank(true, 0.0);
+
+	return Plugin_Continue;
+}
+
 Action tSpawnGascan(Handle timer)
+{
+	g_iNext_NumGascans = g_fNext_CansNeededPerPlayer != 0.0 ? RoundToCeil(float(iCountSurvivorTeam()) * g_fNext_CansNeededPerPlayer) : g_iNext_NumCansNeeded;
+	g_bStartSpawnGascans = true;
+	g_bIsNextSpawnReq = true;
+	g_hSpawnGascanTimer = CreateTimer(g_fNextSpwanDelay, tSpawnGascan_Next, _, TIMER_REPEAT);
+
+	return Plugin_Continue;
+}
+
+Action tSpawnGascan_Next(Handle timer)
 {
 	g_iNext_NumGascans = g_fNext_CansNeededPerPlayer != 0.0 ? RoundToCeil(float(iCountSurvivorTeam()) * g_fNext_CansNeededPerPlayer) : g_iNext_NumCansNeeded;
 	g_bStartSpawnGascans = true;
@@ -1072,6 +1181,7 @@ void vOnUseCancelled(const char[] output, int caller, int activator, float delay
 // 加注完成
 void vOnUseFinished(const char[] output, int caller, int activator, float delay)
 {
+	g_bAllowSpawnTank = false;
 	g_iPourGasAmount++;
 	if(g_iPourGasAmount == g_iNumGascans)
 	{
@@ -1092,9 +1202,11 @@ void vOnUseFinished(const char[] output, int caller, int activator, float delay)
 		PrintToChatAll("\x04[SDS]\x05      %t", "Unlocked");
 		PrintToChatAll("\x04      ---------------------------------");
 
-		for(int i=1; i<MaxClients; i++)
-			StopSound(i, SNDCHAN_AUTO, SS_Music);
-		EmitSoundToAll(SS_Music_F, SOUND_FROM_PLAYER, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, NULL_VECTOR, NULL_VECTOR, true, 25.0);
+//		for(int i=1; i<MaxClients; i++)
+//			StopSound(i, SNDCHAN_AUTO, SDS_Music);
+		if(GetRandomInt(0,1))
+			EmitSoundToAll(SDS_Music_F, SOUND_FROM_PLAYER, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, NULL_VECTOR, NULL_VECTOR, true, 25.0);
+		else	EmitSoundToAll(SDS_Music_FF, SOUND_FROM_PLAYER, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, NULL_VECTOR, NULL_VECTOR, true, 23.0);
 
 		RemoveGasCans();
 	}
@@ -1106,19 +1218,31 @@ void vOnUseFinished(const char[] output, int caller, int activator, float delay)
 // https://forums.alliedmods.net/showthread.php?t=333064
 void RemoveGasCans()
 {
-	static int entity, skin;
-	for(int i=MaxClients; i < 2048; i++)
+	static char classname[32];
+
+	for(int entity=MaxClients+1; entity < 2048; entity++)
 	{
-		entity = FindEntityByClassname(-1, "weapon_gascan");
-		if(entity != -1)
-			skin = GetEntProp(entity, Prop_Send, "m_nSkin");
+		if(!IsValidEntity(entity) )
+			continue;	
+		GetEntityClassname(entity, classname, sizeof(classname) );
+		if(strncmp(classname, "weapon_", 7, false) == 0 )
+		{
+			if(StrContains(classname, "gas", false) != -1 )
+			{
+				if( !((1 << GetEntProp(entity, Prop_Send, "m_nSkin") ) & 1) )
+				{
+					//PrintToServer("*测试 移除油桶");
+					RemoveEntity(entity);
+				}
 
-		if( !((1 << skin) & 1) )
-			RemoveEntity(entity);
+			}
+			else if(StrContains(classname, "scavenge") != -1 && StrContains(classname, "spawn") != -1)
+			{
+				//PrintToServer("*测试 移除生成点");
+				RemoveEntity(entity);
+			}
+		}
 	}
-
-	entity = 0;
-	skin = 0;
 }
 
 void vLateLoadGameData()
@@ -1161,4 +1285,252 @@ int iCreateSurvivorBot()
 		return iBot;
 	}
 	return -1;
+}
+//---------------------------------------------------------------------------||
+//		生成Tank&&双向免伤&&创建提示
+//---------------------------------------------------------------------------||
+bool	g_bChangeTankHP;
+
+void SetTankHP(any index)
+{
+        if(!IsValidEntity(index) )
+	{
+		LogError("[SDS] : 无效的Tankid");
+		return;
+	}
+        int health = GetClientHealth(index);
+//	PrintToChatAll("After Tank:%d Multi:%f, HP:%d", GetClientHealth(index), g_fTankHP_Multi, health );
+        SetEntProp(index, Prop_Send, "m_iHealth", RoundToFloor(float(health) / 2.0 ) );
+//	PrintToChatAll("After Tank:%d Multi:%f, HP:%d", GetClientHealth(index), g_fTankHP_Multi, health ); 
+}
+
+void SpawnTank(bool caller, float TankHP)
+{		
+	float fOrigin[3];
+	int LuckyMan;
+
+	if(!caller)
+	{
+		for(int client=1; client<MaxClients; client++)
+		{
+			if(IsClientConnected(client) )
+			{
+				if(IsClientInGame(client) )
+				{
+					if(GetClientTeam(client) == 2)
+					{
+						if(!LuckyMan)
+							LuckyMan = client;			
+						else	if(GetRandomFloat(0.00, 100.00) >= 50.00)
+						{
+							LuckyMan = client;
+							break;
+						}
+					}
+				}
+			}		
+		}
+	}
+	else	LuckyMan = GetClosestClient();
+
+//	PrintToChatAll("%N # %d", LuckyMan, LuckyMan);
+	char msg[128];
+	Format(msg, sizeof(msg), "Tank降临在 %N 身边！", LuckyMan);
+	EmitSoundToAll(SDS_Hint, SOUND_FROM_PLAYER);
+	UpdateHUD(5, msg);
+	CreateTimer(16.0, tRemoveHUD_Text);
+
+	GetClientAbsOrigin(LuckyMan, fOrigin);		
+	int tank = L4D2_SpawnTank(fOrigin, NULL_VECTOR);
+	CreateTimer(ReactionTime, tReactionTime, tank, TIMER_FLAG_NO_MAPCHANGE);
+	// https://forums.alliedmods.net/showthread.php?p=2790482
+	SetEntProp(tank, Prop_Data, "m_takedamage", 0, 1);
+		
+	g_iShield[tank] = vShield(tank);
+
+	for(int i=1;i<MaxClients;i++)
+	{
+		if(!g_iTankid[i])
+		{
+			g_iTankid[i] = tank;
+			break;
+		}
+	}
+}
+
+Action tRemoveHUD_Text(Handle Timer)
+{
+	UpdateHUD(5, "");
+	return Plugin_Continue;
+}
+
+Action tReactionTime(Handle Timer, any tank)
+{
+        int iShield = EntRefToEntIndex(g_iShield[tank]);
+
+        if (iShield && iShield != INVALID_ENT_REFERENCE && IsValidEntity(iShield))
+		AcceptEntityInput(iShield, "Kill");
+
+        g_iShield[tank] = -1;
+
+	for(int i=1;i<MaxClients;i++)
+	{
+		if(tank == g_iTankid[i])
+			g_iTankid[i] = 0;
+	}
+
+	bool allow;
+	if(IsValidEntity(tank) )
+		if(IsClientConnected(tank) )
+			if(IsClientInGame(tank) )
+				allow = true;
+	if(!allow)	return Plugin_Continue;
+		
+	// https://forums.alliedmods.net/showthread.php?p=2790482
+	SetEntProp(tank, Prop_Data, "m_takedamage", 2, 1);
+
+	return Plugin_Continue;
+}
+
+int vShield(int client)
+{
+        float flOrigin[3];
+        GetClientAbsOrigin(client, flOrigin);
+        flOrigin[2] -= 120.0;
+
+        int iShield = CreateEntityByName("prop_dynamic");
+
+        if (iShield != -1)
+        {
+                SetEntityModel(iShield, MODEL_SHIELD);
+
+                DispatchKeyValueVector(iShield, "origin", flOrigin);
+                DispatchSpawn(iShield);
+                vSetEntityParent(iShield, client, true);
+
+                SetEntityRenderMode(iShield, RENDER_TRANSTEXTURE);
+                SetEntityRenderColor(iShield, 255, 25, 25, 50);
+
+                SetEntProp(iShield, Prop_Send, "m_CollisionGroup", 1);
+
+                g_iShield[client] = EntIndexToEntRef(iShield);
+        }
+        return iShield;
+}
+
+stock void vSetEntityParent(int entity, int parent, bool owner = false)
+{
+        SetVariantString("!activator");
+        AcceptEntityInput(entity, "SetParent", parent);
+
+        if (owner)
+        {
+                SetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity", parent);
+        }
+}
+
+// 获取距离安全门最近的客户端索引，用于确定Tank生成位置
+int GetClosestClient()
+{
+	float Origin[3];
+	float Distance[MAXPLAYERS+1];
+	float fDoorOrigin[3];
+	int nearest;	
+
+	GetEntPropVector(g_iTargetDoor, Prop_Data, "m_vecOrigin", fDoorOrigin);
+//	PrintToChatAll("%.f %.f %.f", fDoorOrigin[0], fDoorOrigin[1], fDoorOrigin[2]);
+
+	for(int client=1; client<MaxClients; client++)
+	{
+		if(IsClientConnected(client) )
+		{
+			if(IsClientInGame(client) )
+			{
+				// 不用考虑机器人，只是为了给开门的玩家惊喜
+				if(GetClientTeam(client) == 2 && !IsFakeClient(client) )
+				{
+					GetClientAbsOrigin(client, Origin);
+					Distance[client] = GetVectorDistance(Origin, fDoorOrigin);
+				
+					for(int i=1; i<MaxClients; i++)
+					{
+						if(Distance[i] == 0.0)
+							continue;
+						if(Distance[client] <= Distance[i])
+							nearest = client;
+					}
+				}
+			}
+		}		
+	}
+	
+	return nearest;		
+}
+
+public void OnClientPutInServer(int client)
+{
+        SDKHook(client, SDKHook_OnTakeDamage, eOnTakeDamage);
+}
+
+public Action eOnTakeDamage(int iVictim, int &iAttacker, int &iInflictor, float &fDamage, int &iDamagetype, int &weapon, float damageForce[3], float damagePosition[3])
+{
+	if(!g_bAllowSpawnTank)
+		return Plugin_Continue;
+
+	for(int i=1;i<MaxClients;i++)
+	{
+		if(iAttacker == g_iTankid[i])
+			return Plugin_Handled;
+	}
+
+	return Plugin_Continue;
+}
+
+// https://github.com/accelerator74/sp-plugins/blob/2ce16cfc3abd673ced16e98cf15bc16a7d0a4d11/l4d2_SpeakingList/SpeakingList.sp#L31C1-L48
+#define HUD_FLAG_PRESTR                 (1<<0)  //      do you want a string/value pair to start(pre) or end(post) with the static string (default is PRE)
+#define HUD_FLAG_POSTSTR                (1<<1)  //      ditto
+#define HUD_FLAG_BEEP                   (1<<2)  //      Makes a countdown timer blink
+#define HUD_FLAG_BLINK                  (1<<3)  //      do you want this field to be blinking
+#define HUD_FLAG_AS_TIME                (1<<4)  //      to do..
+#define HUD_FLAG_COUNTDOWN_WARN (1<<5)  //      auto blink when the timer gets under 10 seconds
+#define HUD_FLAG_NOBG                   (1<<6)  //      dont draw the background box for this UI element
+#define HUD_FLAG_ALLOWNEGTIMER  (1<<7)  //      by default Timers stop on 0:00 to avoid briefly going negative over network, this keeps that from happening
+#define HUD_FLAG_ALIGN_LEFT             (1<<8)  //      Left justify this text
+#define HUD_FLAG_ALIGN_CENTER   (1<<9)  //      Center justify this text
+#define HUD_FLAG_ALIGN_RIGHT    (3<<8)  //      Right justify this text
+#define HUD_FLAG_TEAM_SURVIVORS (1<<10) //      only show to the survivor team
+#define HUD_FLAG_TEAM_INFECTED  (1<<11) //      only show to the special infected team
+#define HUD_FLAG_TEAM_MASK              (3<<10) //      link HUD_FLAG_TEAM_SURVIVORS and HUD_FLAG_TEAM_INFECTED
+#define HUD_FLAG_UNKNOWN1               (1<<12) //      ?
+#define HUD_FLAG_TEXT                   (1<<13) //      ?
+#define HUD_FLAG_NOTVISIBLE             (1<<14) //      if you want to keep the slot data but keep it from displaying
+
+#define EMSHUD_FLAG                             HUD_FLAG_ALIGN_CENTER | HUD_FLAG_TEXT | HUD_FLAG_NOBG | HUD_FLAG_BLINK
+
+stock void HudSet(int slot)
+{
+	GameRules_SetProp("m_iScriptedHUDFlags", EMSHUD_FLAG, _, slot);
+	GameRules_SetPropFloat("m_fScriptedHUDPosX", 0.0, slot, true);
+	GameRules_SetPropFloat("m_fScriptedHUDPosY", 0.25, slot, true);
+	GameRules_SetPropFloat("m_fScriptedHUDWidth", 1.0, slot, true);
+	GameRules_SetPropFloat("m_fScriptedHUDHeight", 0.05, slot, true);
+}
+
+stock void UpdateHUD(int slot, const char[] msg)
+{
+	GameRules_SetPropString("m_szScriptedHUDStringSet", msg, true, slot);
+}
+
+//---------------------------------------------------------------------------||
+//
+//---------------------------------------------------------------------------||
+stock int GetAllPlayersInServer()
+{
+	int count = 0;
+	for(int i = 1; i < MaxClients + 1; i++)
+	{
+		if(IsClientConnected(i))
+			count++;
+	}
+	return count;
 }
