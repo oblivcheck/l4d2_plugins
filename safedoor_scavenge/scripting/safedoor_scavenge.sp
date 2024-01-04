@@ -8,7 +8,7 @@
 
 #define PLUGIN_NAME             "Safe Door Scavenge"
 #define PLUGIN_DESCRIPTION      "不想让多人服务器变成跑图比赛"
-#define PLUGIN_VERSION          "1.0 (fork by version 1.0.5)"
+#define PLUGIN_VERSION          "1.1 (fork by version 1.0.5)"
 #define PLUGIN_AUTHOR           "sorallll, oblivcheck/Iciaria"
 #define PLUGIN_URL              "https://github.com/oblivcheck/l4d2_plugins/tree/master/safedoor_scavenge"
 
@@ -250,6 +250,9 @@ public void OnPluginStart()
 
 Action cmdSd(int client, int args)
 {
+//	vSetNeededDisplay(4);
+//	return Plugin_Handled;
+
 	if(client == 0 || !IsClientInGame(client))
 		return Plugin_Handled;
 
@@ -538,7 +541,7 @@ void vOnOpen(const char[] output, int caller, int activator, float delay)
 		g_hSpawnGascanTimer = CreateTimer(g_fNextSpwanDelay * 2.0, tSpawnGascan);
 		// 开启EMS HUD提示
 		HudSet(5);
-		UpdateHUD(5, "Tank即将降临在????的身边");
+		UpdateHUD(5, "Tank 即将降临到 ???? 的身边");
 		
 		// 创建加油指导提示
 		for(int i = 1; i <= MaxClients; i++)
@@ -605,7 +608,8 @@ Action tSpawnTank(Handle Timer)
 {
 	if(g_bAllowSpawnTank)
 	{
-//		PrintToChatAll("%d", GetAllPlayersInServer());
+		PrintToServer("\n*测试 g_bAllowSpawnTank : %d \n", g_bAllowSpawnTank);
+
 		if(GetAllPlayersInServer() >= MaxClients)
 		{
 			CreateTimer(2.0, tSpawnTank, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
@@ -926,8 +930,13 @@ void vSpawnScavengeItem(const float vOrigin[3])
 	g_aScavengeItem.Push(EntIndexToEntRef(entity));
 }
 
+//static char ReloadEntityScript[] = "ent_fire game_scavenge_progress_display runscriptfile plugin_sds_game_scavenge_progress_display";
 void vSetNeededDisplay(int iNumCans)
 {
+//	int target = FindEntityByClassname(MaxClients+1, "game_scavenge_progress_display");
+//	if(target != -1)
+//		RemoveEntity(target);
+
 	int entity = CreateEntityByName("game_scavenge_progress_display");
 
 	char sNumCans[8];
@@ -936,7 +945,13 @@ void vSetNeededDisplay(int iNumCans)
 	DispatchSpawn(entity);
 
 	AcceptEntityInput(entity, "TurnOn");
-	g_iGameDisplay = EntIndexToEntRef(entity);
+
+	// 重置HUD显示的已经填充的油桶计数
+	int test = FindEntityByClassname(MaxClients+1, "terror_gamerules");
+	if(test != -1)
+		GameRules_SetProp("m_iScavengeTeamScore", 0);
+
+	g_iGameDisplay = EntIndexToEntRef(entity);	
 }
 
 bool bIsValidEntRef(int entity)
@@ -1181,7 +1196,6 @@ void vOnUseCancelled(const char[] output, int caller, int activator, float delay
 // 加注完成
 void vOnUseFinished(const char[] output, int caller, int activator, float delay)
 {
-	g_bAllowSpawnTank = false;
 	g_iPourGasAmount++;
 	if(g_iPourGasAmount == g_iNumGascans)
 	{
@@ -1208,6 +1222,7 @@ void vOnUseFinished(const char[] output, int caller, int activator, float delay)
 			EmitSoundToAll(SDS_Music_F, SOUND_FROM_PLAYER, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, NULL_VECTOR, NULL_VECTOR, true, 25.0);
 		else	EmitSoundToAll(SDS_Music_FF, SOUND_FROM_PLAYER, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, NULL_VECTOR, NULL_VECTOR, true, 23.0);
 
+		g_bAllowSpawnTank = false;
 		RemoveGasCans();
 	}
 	g_iPropUseTarget[GetEntProp(caller, Prop_Data, "m_iHammerID")] = 0;
@@ -1335,7 +1350,7 @@ void SpawnTank(bool caller, float TankHP)
 
 //	PrintToChatAll("%N # %d", LuckyMan, LuckyMan);
 	char msg[128];
-	Format(msg, sizeof(msg), "Tank降临在 %N 身边！", LuckyMan);
+	Format(msg, sizeof(msg), "Tank 降临到 %N 身边！", LuckyMan);
 	EmitSoundToAll(SDS_Hint, SOUND_FROM_PLAYER);
 	UpdateHUD(5, msg);
 	CreateTimer(16.0, tRemoveHUD_Text);
@@ -1534,3 +1549,4 @@ stock int GetAllPlayersInServer()
 	}
 	return count;
 }
+
