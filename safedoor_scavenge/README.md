@@ -89,6 +89,10 @@ safedoor_scavenge_spawn_delay "80.0"
 
 ## Changes Log
 ~~~
+(1.1.1)
+2024-01-05
+- Tank only spawn near alive players.
+
 (1.1)
 2024-01-04
 - Fixed: Sometimes the problem of Tank not  spawn.

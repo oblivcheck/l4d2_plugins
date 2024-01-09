@@ -8,7 +8,7 @@
 
 #define PLUGIN_NAME             "Safe Door Scavenge"
 #define PLUGIN_DESCRIPTION      "不想让多人服务器变成跑图比赛"
-#define PLUGIN_VERSION          "1.1 (fork by version 1.0.5)"
+#define PLUGIN_VERSION          "1.1.1 (fork by version 1.0.5)"
 #define PLUGIN_AUTHOR           "sorallll, oblivcheck/Iciaria"
 #define PLUGIN_URL              "https://github.com/oblivcheck/l4d2_plugins/tree/master/safedoor_scavenge"
 
@@ -1332,7 +1332,7 @@ void SpawnTank(bool caller, float TankHP)
 			{
 				if(IsClientInGame(client) )
 				{
-					if(GetClientTeam(client) == 2)
+					if(GetClientTeam(client) == 2 && IsPlayerAlive(client) )
 					{
 						if(!LuckyMan)
 							LuckyMan = client;			
@@ -1462,7 +1462,7 @@ int GetClosestClient()
 			if(IsClientInGame(client) )
 			{
 				// 不用考虑机器人，只是为了给开门的玩家惊喜
-				if(GetClientTeam(client) == 2 && !IsFakeClient(client) )
+				if(GetClientTeam(client) == 2 && !IsFakeClient(client) && IsPlayerAlive(client) )
 				{
 					GetClientAbsOrigin(client, Origin);
 					Distance[client] = GetVectorDistance(Origin, fDoorOrigin);
