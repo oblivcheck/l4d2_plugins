@@ -5,6 +5,7 @@
 
 - Limit voice time.
 
+- (Optional)When a player starts speaking or stops speaking, print a message in the chat that is instant.
 
 ## ConVars
 ~~~
@@ -20,7 +21,7 @@ l4d2_voiceviewer_emshud_HUDBG "0"
 
 // EMS HUD Slot used for display, See:
 // https://developer.valvesoftware.com/wiki/L4D2_EMS/Appendix:_HUD
-// https://github.com/oblivcheck/l4d2_plugins/blob/eb43f95fd4e60bbfdaff84616221ac8367d2ec7f/l4d2_voiceviewer/scripting/l4d2_voiceviewer.sp#L45-L89
+// https://github.com/oblivcheck/l4d2_plugins/blob/eb43f95fd4e60bbfdaff84616221ac8367d2ec7f/l4d2_voiceviewer/scripting/l4d2_voiceviewer.sp#L46-L90
 // -
 // Default: "1"
 l4d2_voiceviewer_emshud_Slot "1"
@@ -30,12 +31,6 @@ l4d2_voiceviewer_emshud_Slot "1"
 // -
 // Default: "0.0 0.75 1.0 0.05"
 l4d2_voiceviewer_emshud_XYWH "0.0 0.75 1.0 0.05"
-
-// If the byte length of the player's name exceeds a certain value, it will be truncated.
-// Int Value, Do NOT larger than 48.
-// -
-// Default: "16"
-l4d2_voiceviewer_emshud_name_max_length "16"
 
 // Enable or Disable
 // -
@@ -53,6 +48,12 @@ l4d2_voiceviewer_interval "0.5"
 // Default: "90"
 l4d2_voiceviewer_limit "90"
 
+// If the byte length of the player's name exceeds a certain value, it will be truncated.
+// Int Value, 0 = disable, Do NOT larger than 48.
+// -
+// Default: "0"
+l4d2_voiceviewer_name_max_length "0"
+
 // Time to wait for restrictions to be lifted
 // Time(s) = l4d2_voiceviewer_interval * l4d2_voiceviewer_reset
 // -
@@ -60,7 +61,8 @@ l4d2_voiceviewer_limit "90"
 l4d2_voiceviewer_reset "90"
 
 // Where to print voice messages?
-// 0 = Disable, 1= EMS HUD, 2 = HintText, 4 = CenterText; Add to get all
+// 0 = Disable, 1= EMS HUD, 2 = HintText, 4 = CenterText, 8 = when a player starts speaking or stops speaking, print a message in the chat that is instant.
+// Add to get all
 // -
 // Default: "2"
 l4d2_voiceviewer_type "2"
@@ -75,6 +77,11 @@ l4d2_voiceviewer_type "2"
 
 ## Chnages Log
 ~~~
+2024-01-23 (1.5)
+        - If the value of Cvar "l4d2_voiceviewer_type" contains 8: When a player starts speaking or stops speaking, print a message in the chat that is instant. requested by "S.A.S".
+        - If the value of Cvar "l4d2_voiceviewer_name_max_length" is 0, there is no limit to the length of the displayed player name.
+        - Cvar default value change.
+
 2023-12-13 (1.4)
         - EMS HUD support, requested by "S.A.S".
         - If the player's name is too long, it will be truncated.

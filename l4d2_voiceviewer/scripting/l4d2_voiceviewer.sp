@@ -4,11 +4,16 @@
 
 #define PLUGIN_NAME             "[L4D2] Voice Viewer"
 #define PLUGIN_DESCRIPTION      "See who is speaking on server(4+ players), limit maximum time for a single voice"
-#define PLUGIN_VERSION          "1.4"
+#define PLUGIN_VERSION          "1.5"
 #define PLUGIN_AUTHOR           "oblivcheck/Iciaria"
 #define PLUGIN_URL              "https://forums.alliedmods.net/showthread.php?p=2810611"
 
 /*	Changes Log
+2024-01-23 (1.5)
+	- If the value of Cvar "l4d2_voiceviewer_type" contains 8: When a player starts speaking or stops speaking, print a message in the chat that is instant. requested by "S.A.S".
+	- If the value of Cvar "l4d2_voiceviewer_name_max_length" is 0, there is no limit to the length of the displayed player name.
+	- Cvar default value change.
+
 2023-12-13 (1.4)
 	- EMS HUD support, requested by "S.A.S".
 	- If the player's name is too long, it will be truncated.
@@ -133,9 +138,9 @@ public void OnPluginStart()
 	g_hLimit = CreateConVar("l4d2_voiceviewer_limit", "90", "Time limit for sending voice.\nTime(s) = l4d2_voiceviewer_interval * l4d2_voiceviewer_limit");
 	g_hReset = CreateConVar("l4d2_voiceviewer_reset", "90", "Time to wait for restrictions to be lifted\nTime(s) = l4d2_voiceviewer_interval * l4d2_voiceviewer_reset");
 	g_hInterval = CreateConVar("l4d2_voiceviewer_interval", "0.5", "Check interval.");
-	g_hType = CreateConVar("l4d2_voiceviewer_type", "2", "Where to print voice messages?\n0 = Disable, 1= EMS HUD, 2 = HintText, 4 = CenterText; Add to get all");
+	g_hType = CreateConVar("l4d2_voiceviewer_type", "2", "Where to print voice messages?\n0 = Disable, 1= EMS HUD, 2 = HintText, 4 = CenterText, 8 = when a player starts speaking or stops speaking, print a message in the chat that is instant.\nAdd to get all");
 //	g_hTitle = CreateConVar("l4d2_voiceviewer_emshud_title", "正在说话的玩家 🔊", "");
-	g_hNameLen = CreateConVar("l4d2_voiceviewer_name_max_length", "16", "If the byte length of the player's name exceeds a certain value, it will be truncated.\nInt Value, Do NOT larger than 48.");
+	g_hNameLen = CreateConVar("l4d2_voiceviewer_name_max_length", "0", "If the byte length of the player's name exceeds a certain value, it will be truncated.\nInt Value, 0 = disable, Do NOT larger than 48.");
 	g_hSlot = CreateConVar("l4d2_voiceviewer_emshud_Slot", "1", "EMS HUD Slot used for display, See:\nhttps://developer.valvesoftware.com/wiki/L4D2_EMS/Appendix:_HUD\nhttps://github.com/oblivcheck/l4d2_plugins/blob/eb43f95fd4e60bbfdaff84616221ac8367d2ec7f/l4d2_voiceviewer/scripting/l4d2_voiceviewer.sp#L46-L90");
 	g_hXYWH = CreateConVar("l4d2_voiceviewer_emshud_XYWH", "0.0 0.75 1.0 0.05", "X,Y position and Width and Height, See:\nhttps://developer.valvesoftware.com/wiki/L4D2_EMS/Appendix:_HUD");
 	g_hHUDBG = CreateConVar("l4d2_voiceviewer_emshud_HUDBG", "0", "1 = Draw a black background for the selected EMS HUD Slot.(Check XYWH)\nNote: You need to rejoin the target server for this change to take effect on the client.");
@@ -228,6 +233,13 @@ public void BaseComm_OnClientMute(int client, bool muteState)
 public void OnClientSpeaking(int client)
 {
 	if(!g_bEnable)	return;
+
+	if(g_iType & 8)
+	{
+		if(!g_bClientIsTalking[client])
+			PrintHintInChat(client, true);
+	}
+
 	g_bClientIsTalking[client] = true;
 }
 
@@ -238,6 +250,9 @@ public void OnClientSpeakingEnd(int client)
 
 	if(!g_bIsClientMuted[client] )
 		g_iTalkingTime[client] = 0;
+
+	if(g_iType & 8)
+		PrintHintInChat(client, false);
 }
 
 Action Event_PlayerDisconnect(Event event, const char[] name, bool dontBroadcast)
@@ -290,15 +305,19 @@ Action UpdateHint(Handle timer)
 
 				continue;
 			}
-
-			// Notice: null terminator
-			char name[49];
-			if (Format(name, sizeof(name), "%N", i) > g_iNameLen )
+			
+			if(g_iNameLen > 0)
 			{
-				Format(name, g_iNameLen+1, "%s", name);
-				Format(buffer, sizeof(buffer), "%s%s... ", sMSG, name);
+				// Notice: null terminator
+				char name[49];
+				if (Format(name, sizeof(name), "%N", i) > g_iNameLen )
+				{
+					Format(name, g_iNameLen+1, "%s", name);
+					Format(buffer, sizeof(buffer), "%s%s... ", sMSG, name);
+				}
+				else	Format(buffer, sizeof(buffer), "%s%s ", sMSG, name);
 			}
-			else	Format(buffer, sizeof(buffer), "%s%s ", sMSG, name);
+			else	Format(buffer, sizeof(buffer), "%s%N ", sMSG, i);
 
 			Format(sMSG, sizeof(sMSG), "%s ", buffer);
 			AllowPrint = true;	
@@ -401,4 +420,16 @@ stock void GetHUDTitle()
 		LogError("[%s %s] File cannot be found: data/l4d2_voiceviewer.txt! Please check the server config file...", PLUGIN_NAME, PLUGIN_VERSION);
 		Format(g_sTitle, sizeof(g_sTitle), "ERR: File cannot be found: data/l4d2_voiceviewer.txt! Please check the server config file...");
 	}
+}
+
+//stock void PrintHintInChat(int client, bool start, bool mute=false)
+stock void PrintHintInChat(int client, bool start)
+{
+/*
+	if(mute)
+		PrintToChatAll(client, "\x04%t", "Chat_PlayerMuted", client);
+*/
+	if(start)
+		PrintToChatAll("\x04%t", "Chat_PlayerSpeaking", client);
+	else	PrintToChatAll("\x04%t", "Chat_PlayerSpeakingEnd", client);
 }
