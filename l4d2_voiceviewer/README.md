@@ -71,12 +71,15 @@ l4d2_voiceviewer_type "2"
 ## Translations
 - English *(provided by "Peter Brev")*
 
-- Simplified Chinese *(provided by "Spokzooy/Iciaria")*
+- Simplified Chinese *(provided by "oblivcheck/Iciaria")*
 
 - French *(provided by "Peter Brev")*
 
 ## Chnages Log
 ~~~
+2024-01-24 (1.6)
+        - Fixed: when a player is muted, open or close the micwill still cause messages to appear in the chat. Reported by "S.A.S".
+
 2024-01-23 (1.5)
         - If the value of Cvar "l4d2_voiceviewer_type" contains 8: When a player starts speaking or stops speaking, print a message in the chat that is instant. requested by "S.A.S".
         - If the value of Cvar "l4d2_voiceviewer_name_max_length" is 0, there is no limit to the length of the displayed player name.

@@ -4,11 +4,14 @@
 
 #define PLUGIN_NAME             "[L4D2] Voice Viewer"
 #define PLUGIN_DESCRIPTION      "See who is speaking on server(4+ players), limit maximum time for a single voice"
-#define PLUGIN_VERSION          "1.5"
+#define PLUGIN_VERSION          "1.6"
 #define PLUGIN_AUTHOR           "oblivcheck/Iciaria"
 #define PLUGIN_URL              "https://forums.alliedmods.net/showthread.php?p=2810611"
 
 /*	Changes Log
+2024-01-24 (1.6)
+	- Fixed: when a player is muted, open or close the micwill still cause messages to appear in the chat. Reported by "S.A.S".
+
 2024-01-23 (1.5)
 	- If the value of Cvar "l4d2_voiceviewer_type" contains 8: When a player starts speaking or stops speaking, print a message in the chat that is instant. requested by "S.A.S".
 	- If the value of Cvar "l4d2_voiceviewer_name_max_length" is 0, there is no limit to the length of the displayed player name.
@@ -236,7 +239,7 @@ public void OnClientSpeaking(int client)
 
 	if(g_iType & 8)
 	{
-		if(!g_bClientIsTalking[client])
+		if(!g_bClientIsTalking[client] && !g_bIsClientMuted[client])
 			PrintHintInChat(client, true);
 	}
 
@@ -251,7 +254,7 @@ public void OnClientSpeakingEnd(int client)
 	if(!g_bIsClientMuted[client] )
 		g_iTalkingTime[client] = 0;
 
-	if(g_iType & 8)
+	if((g_iType & 8) && !g_bIsClientMuted[client])
 		PrintHintInChat(client, false);
 }
 

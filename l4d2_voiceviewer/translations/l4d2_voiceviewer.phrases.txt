@@ -36,17 +36,13 @@
 	{
 		"#format"       "{1:N}"
 		"en"	"{1} is talking."
-		"fr"	""
 		"chi"	"{1} 正在说话."
-		"ru"	""
 	}
 
 	"Chat_PlayerSpeakingEnd"
 	{
 		"#format"       "{1:N}"
 		"en"	"{1} stopped talking."
-		"fr"	""
 		"chi"	"{1} 停止了说话."
-		"ru"	""
 	}
 }
