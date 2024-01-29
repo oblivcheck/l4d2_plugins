@@ -9,13 +9,17 @@
 
 #define PLUGIN_NAME             "MPDS Shop"
 #define PLUGIN_DESCRIPTION      "服务器商店与内嵌的击杀奖励系统"
-#define PLUGIN_VERSION          "REV 1.0.0 Beta"
+#define PLUGIN_VERSION          "REV 1.0.0 Beta 2"
 #define PLUGIN_AUTHOR           "oblivcheck"
 #define PLUGIN_URL              "https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop"
 
 /************************************************************************
 
 Changes Log:
+
+2024-01-29 (REV 1.0.0 Beta 2)
+   - Add some macro definitions to modify the plugin settings.
+   - Organize the code.
 
 2024-01-29 (REV 1.0.0 Beta)
 	- Initial version.
@@ -37,12 +41,62 @@ bool	On;
 
 // 游戏默认的生命值上限，用于逻辑判断
 #define	MAX_HEALTH_DEF		100
-// 永久生命值的上限
+// 永久生命值的上限，临时生命值没有特别设置，这意味着最大总生命值应该是200? 
+//   默认游戏设置下，过多的临时生命值，将导致倒地时的生命值接近400？只是猜测
 #define	MAX_HP			150
-// 抽奖的次数，如果被限制了
+
+// 帮助队友获得的奖励：pt与永久生命值
+#define	DEFIB_REWARD		60
+#define	DEFIB_REWARD_PT		20
+#define	HEAL_REWARD		20
+#define	HEAL_REWARD_PT		5
+#define	REVIVE_REWARD		30
+#define REVIVE_REWARD_PT	5
+// 如果玩家挂边，获取他当前倒地生命值的Tick间隔
+#define	HANGING_CHECK_INTERVAL	45
+// 挂边时，被救助的玩家生命值低于这个值会被认为是需要紧急救助的
+#define	REVIVE_HP_REWARD	100
+// 如果被救助的玩家是挂边状态，但并不被认为是需要紧急救助，那么玩家应该恢复的生命值将被下面的值覆盖
+#define	REVIVE_FAST_REWARD	10
+
+// 扫描存活TANK的时间间隔(秒)
+#define	TANK_ALIVE_TIMER_INTERVAL	5.0
+// 玩家单独击杀了Tank，并且仅使用近战武器，奖励的PT
+#define	TANK_SOLO_MELEE_REWARD		1000
+// 击杀TANK奖励PT
+#define	TANK_REWARD			10
+// 仅使用近战击杀TANK额外的奖励PT
+#define	TANK_ONLY_MELEE_REWARD		50
+// TANK发现幸存者后，存活时间>=TANK_ALIVE_TIMER_COUNT*TANK_ALIVE_TIMER_INTERVAL
+//   后开始在每一次检查中扣除幸存者的PT
+#define	TANK_ALIVE_TIMER_COUNT		35
+// 每一次扣除的数量
+#define	TANK_ALIVE_DEDUCT		1
+
+// 击杀特殊感染者恢复的临时生命值，
+//   在玩家当前总生命值没有超过MAX_HEALTH_DEF的情况下，
+//     这不会让生命值高于MAX_HEALTH_DEF
+#define	BOOMER_REWARD		10.0
+#define	SPITTER_REWARD		10.0
+#define	SMOKER_REWARD		14.0
+#define	JOCKEY_REWARD		14.0
+#define	HUNTER_REWARD		18.0
+#define	CHARGER_REWARD		20.0
+
+/***商店物品的详细属性在 CacheShopItem() 中进行设置***/
+// 允许抽奖的次数，如果被限制了；如果玩家的pt点数在花费LDW_PRICE之后将为负数，则启用限制
+//   限制会在高于(LDW_PRICE-1)时被重置，地图结束时也将重置
+//     目前的版本下，所有物品的库存也将在地图结束时重置
 #define	LDW_LIMIT		2
 // 抽奖需要花费的点数
 #define LDW_PRICE		6
+
+// 如果是写实模式，!buy中每一项物品的价格乘以这个值
+#define	REALISM_MODE_SPENT_MULT	2.5
+
+// 是否允许使用除颤器
+// 对于MPDS服务器，它可能会导致崩溃
+#define	ALLOW_USE_DEFIB		0
 
 //---------------------------------------------------------------------------||
 
@@ -131,9 +185,9 @@ ArrayList SubShop_ItemWeaponAmmoMult;
 
 // 应该始终以tank_burn_duration_expert值的一半进行判断 170/2 = 85 (17次计时)
 // 追踪相应的Cvar变化？ 也许以后...
-int g_iTankAliveTimeCount;
-// 用于计算Tank作战过程中的点数变化，仅用于打印提示.
-int g_iTankValue;
+int g_iTankAliveTime;
+// 用于与计算Tank作战过程中的点数变化，仅用于打印提示.
+int g_iTankPTChanged;
 
 int g_iClientCount_LDW[MAXPLAYERS+1];
 bool	IsRealismMode;
@@ -186,7 +240,9 @@ int Native_MPDS_Shop_PT_Get(Handle plugin, int numParams)
 
 public OnPluginStart()
 {
+#if !ALLOW_USE_DEFIB
 	HookEvent("defibrillator_begin", Event_Defibrillator_Begin);
+#endif
 	HookEvent("defibrillator_used", Event_Defibrillator_Used);
 	HookEvent("player_ledge_grab", Event_Player_Ledge_Grab);
 	HookEvent("revive_success", Event_Revive_Success);
@@ -220,9 +276,16 @@ public OnPluginStart()
 	RegAdminCmd("sm_hreset", cmd_hreset, ADMFLAG_ROOT);	
 
 	CacheShopItem();
-	ResetClientShopItemCount();
-	ResetClientCount_LDW();
+	// 除非插件在运行时被更换，否则这只会在插件的生命周期内创建一次，不需要担心影响CookieCached标记的正确性
+	CreateTimer(0.5, tDelayExecuteCMD);
 }
+
+Action tDelayExecuteCMD(Handle Timer)
+{
+	ServerCommand("sm_hreset");	
+	return Plugin_Continue;
+}
+
 //---------------------------------------------------------------------------||
 //              Cvar变更
 //---------------------------------------------------------------------------||
@@ -253,7 +316,7 @@ Action cmd_hreset(int client, int args)
 
 	ResetClientShopItemCount();
 	ResetClientCount_LDW();
-	ReplyToCommand(client, "执行完毕");
+	ReplyToCommand(client, "sm_hreset: 执行完毕");
 	return Plugin_Continue;
 }
 
@@ -336,6 +399,7 @@ public void OnClientDisconnect(int client)
 //---------------------------------------------------------------------------||
 //		使用除颤器复活队友的奖励
 //---------------------------------------------------------------------------||
+#if !ALLOW_USE_DEFIB
 public Action Event_Defibrillator_Begin(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid") );
@@ -348,7 +412,7 @@ public Action Event_Defibrillator_Begin(Event event, const char[] name, bool don
 
 	return Plugin_Handled;
 }
-
+#endif
 public Action Event_Defibrillator_Used(Event event, const char[] name, bool dontBroadcast)
 
 {
@@ -358,8 +422,8 @@ public Action Event_Defibrillator_Used(Event event, const char[] name, bool dont
 		return Plugin_Continue;
 	int target =  GetClientOfUserId(event.GetInt("subject") );
 	int HP = GetClientHealth(client);
-	if((HP + 60) < MAX_HP )
-		SetEntProp(client, Prop_Send, "m_iHealth", HP + 60, 1);
+	if((HP + DEFIB_REWARD) < MAX_HP )
+		SetEntProp(client, Prop_Send, "m_iHealth", HP + DEFIB_REWARD , 1);
 	else	SetEntProp(client, Prop_Send, "m_iHealth", MAX_HP, 1);
 
 	SetEntProp(client, Prop_Send, "m_currentReviveCount", 0);
@@ -377,12 +441,12 @@ public Action Event_Defibrillator_Used(Event event, const char[] name, bool dont
 	ResetSoundObs(client);
 
 	PrintToChatAll("\x05%N \x03使用除颤器救回 \x05%N", client, target);
-	PrintToChatAll("\x03----获得了\x0560\x03生命值奖励并重置了自己的健康状态.");
+	PrintToChatAll("\x03----获得了\x05%d\x03生命值奖励并重置了自己的健康状态.", DEFIB_REWARD);
 
 	if(!IsFakeClient(client) )
 	{
-		if(PT_Add(client, 20) != -1 )
-			CPrintToChat(client, "\x03\x01获得了{blue} 20 pt\x01");
+		if(PT_Add(client, DEFIB_REWARD_PT) != -1 )
+			CPrintToChat(client, "\x03\x01获得了{blue} %d pt\x01", DEFIB_REWARD_PT);
 		else	CPrintToChat(client, "{blue}你的点数设置未成功：Cookie未加载？");
 	}
 
@@ -463,16 +527,16 @@ public Action Event_Heal_Success(Event event, const char[] name, bool dontBroadc
 
 	if (g_bHero[client])
 	{
-		if((HP + 30) < MAX_HP )
-			SetEntProp(client, Prop_Send, "m_iHealth", HP + 30, 1);
+		if((HP + HEAL_REWARD) < MAX_HP )
+			SetEntProp(client, Prop_Send, "m_iHealth", HP + HEAL_REWARD, 1);
 		else	SetEntProp(client, Prop_Send, "m_iHealth", MAX_HP, 1);
 
-		PrintToChatAll("\x05%N \x03使用医疗包治愈了处于濒死状态的 \x05%N\x03，获得了\x0530\x03生命值奖励", client, target);
+		PrintToChatAll("\x05%N \x03使用医疗包治愈了处于濒死状态的 \x05%N\x03，获得了\x05%d\x03生命值奖励", client, target, HEAL_REWARD);
 
 		if (!IsFakeClient(client) )
 		{
-			if(PT_Add(client, 5) != -1)
-				CPrintToChat(client, "\x03\x01获得了{blue} 5 pt\x01");
+			if(PT_Add(client, HEAL_REWARD_PT) != -1)
+				CPrintToChat(client, "\x03\x01获得了{blue} 5 pt\x01", HEAL_REWARD_PT);
 			else	CPrintToChat(client, "{blue}你的点数设置未成功：Cookie未加载？");
 		}
 	}
@@ -492,12 +556,13 @@ public Action Event_Player_Ledge_Grab(Event event, const char[] name, bool dontB
 	return Plugin_Continue;
 }
 // 简单方法，对于180tick的MPDS服务器，这意味着每0.25s进行一次检查
-// 如果有其它检查玩家倒地后的生命值...
+// 这种方法应该不会有问题，恢复的生命值是在救助完成时进行判断的
+//  有什么好的方法可以在获取救助前被帮助者的倒地生命值...
 public void OnGameFrame()
 {
-	static skip;
+	static int skip;
 	skip++;
-	if(skip>=45)
+	if(skip>=HANGING_CHECK_INTERVAL)
 	{
 		skip=0;
 		for(int i =1; i<=MaxClients; i++)
@@ -524,11 +589,11 @@ public Action Event_Revive_Success(Event event, const char[] name, bool dontBroa
 	if(g_bPlayerHanging[target])
 	{
 		g_bPlayerHanging[target] = false;
-		if(g_iPlayerHanging_HP[target] <= 100)
-			Add_HP = 30;
-		else	Add_HP = 10;
+		if(g_iPlayerHanging_HP[target] < REVIVE_HP_REWARD)
+			Add_HP = REVIVE_REWARD;
+		else	Add_HP = REVIVE_FAST_REWARD;
 	}
-	else	Add_HP = 30;
+	else	Add_HP = REVIVE_REWARD;
 
 	if((HP + Add_HP) < MAX_HP)
 		SetEntProp(client, Prop_Send, "m_iHealth", HP + Add_HP, 1);
@@ -536,12 +601,12 @@ public Action Event_Revive_Success(Event event, const char[] name, bool dontBroa
 	else 	SetEntProp(client, Prop_Send, "m_iHealth", MAX_HP, 1);
 
 	PrintToChatAll("\x05%N \x03救起了 \x05%N\x03，获得了\x05%d\x03生命值奖励", client, target, Add_HP);
-	if(Add_HP == 30)
+	if(Add_HP == REVIVE_REWARD)
 	{
 		if(!IsFakeClient(client) )
 		{
-			if(PT_Add(client, 5) != -1 )
-				CPrintToChat(client, "\x03\x01获得了{blue} 5 pt\x01");
+			if(PT_Add(client, REVIVE_REWARD_PT) != -1 )
+				CPrintToChat(client, "\x03\x01获得了{blue} %d pt\x01", REVIVE_REWARD_PT);
 			else	CPrintToChat(client, "{blue}你的点数设置未成功：Cookie未加载？");
 		}
 	}
@@ -633,8 +698,8 @@ public OnMapEnd()
 {
 	ResetClientCount_LDW();
 	ResetClientShopItemCount();
-	g_iTankAliveTimeCount = 0;
-	g_iTankValue = 0;
+	g_iTankAliveTime = 0;
+	g_iTankPTChanged = 0;
 	On = false;
 }
 
@@ -681,28 +746,28 @@ public Action Event_Player_Death(Event event, const char[] name, bool dontBroadc
 		{
 			case	2:{
 					Format(sTarget, sizeof(sTarget), "Boomer");
-					Add_Health = 12.0;
+					Add_Health = BOOMER_REWARD;
 			}
 			case	4:{
 					Format(sTarget, sizeof(sTarget), "Spitter");
-					Add_Health = 12.0;
+					Add_Health = SPITTER_REWARD;
 			}
 			case	1:{
 					Format(sTarget, sizeof(sTarget), "Smoker");
-					Add_Health = 12.0;
+					Add_Health = SMOKER_REWARD;
 			}
 			case	5:{
 					Format(sTarget, sizeof(sTarget), "Jockey");
-					Add_Health = 12.0;
+					Add_Health = JOCKEY_REWARD;
 			}
 			case	3:{	
 					Format(sTarget, sizeof(sTarget), "Hunter");
-					Add_Health = 20.0;
+					Add_Health = HUNTER_REWARD;
 			}
 
 			case	6:{ 
 					Format(sTarget, sizeof(sTarget), "Charger");
-					Add_Health = 20.0;
+					Add_Health = CHARGER_REWARD;
 			}
 		}
 
@@ -755,12 +820,12 @@ void ResetClientShopItemCount()
 			g_iClientShopItemRemainingQuantity[client][idx] = -1;
 }
 
-stock void SetClientShopItemCount(client, item, value)
+void SetClientShopItemCount(client, item, value)
 {
 	g_iClientShopItemRemainingQuantity[client][item] = value;
 }
 
-stock int GetClientShopItemCount(client, item)
+int GetClientShopItemCount(client, item)
 {
 	if(g_iClientShopItemRemainingQuantity[client][item] == -1 )
 		return SubShop_ItemWeaponCount.Get(item);
@@ -940,14 +1005,17 @@ void CacheShopItem()
 {
 	// 对于随机的物品，只关注显示名称与价格
 	// 后三个值重置的默认值为-1
+	// 始终确保每一个项目的显示名称不为空，它被用于计算项目的总数
 	SubShop_ItemDisplayName = CreateArray(32);
 	SubShop_ItemWeaponName = CreateArray(32);
-	// -1 为锁定的物品
+	// -1 = 锁定的物品
+	// 价格
 	SubShop_ItemWeaponPrice = CreateArray(1);
-	// -2 为无限
-	// 待定：-3,-4,-5为保留值，更小的数字同样意味着无限
+	// -2 = 无限
+	// 这个项目当前章节对于玩家的可购买次数
 	SubShop_ItemWeaponCount = CreateArray(1);
-	// -2 该参数是无效的
+	// -2 = 参数是无效的
+	// 武器的备用弹药=武器的默认弹匣大小*设置的值
 	SubShop_ItemWeaponAmmoMult = CreateArray(1);
 
 	SubShop_ItemDisplayName.PushString("随机的物品");
@@ -1199,12 +1267,20 @@ void CacheShopItem()
 	SubShop_ItemWeaponCount.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
-	SubShop_ItemDisplayName.PushString("除颤器-禁用");
-	SubShop_ItemWeaponName.PushString("weapon_defibrillator");	
-//	SubShop_ItemWeaponPrice.Push(10);
-	SubShop_ItemWeaponPrice.Push(-1);
-	SubShop_ItemWeaponCount.Push(4);
-	SubShop_ItemWeaponAmmoMult.Push(-2);
+#if ALLOW_USE_DEFIB
+		SubShop_ItemDisplayName.PushString("除颤器");
+		SubShop_ItemWeaponName.PushString("weapon_defibrillator");	
+		SubShop_ItemWeaponPrice.Push(10);
+		SubShop_ItemWeaponCount.Push(4);
+		SubShop_ItemWeaponAmmoMult.Push(-2);
+#endif
+#if !ALLOW_USE_DEFIB
+		SubShop_ItemDisplayName.PushString("除颤器-禁用");
+		SubShop_ItemWeaponName.PushString("weapon_defibrillator");	
+		SubShop_ItemWeaponPrice.Push(-1);
+		SubShop_ItemWeaponCount.Push(4);
+		SubShop_ItemWeaponAmmoMult.Push(-2);
+#endif
 
 	SubShop_ItemDisplayName.PushString("医疗包");
 	SubShop_ItemWeaponName.PushString("weapon_first_aid_kit");	
@@ -1330,7 +1406,7 @@ void CacheShopItem()
 
 }
 
-stock void DisplayShopMenu(int client)
+void DisplayShopMenu(int client)
 {
 	Menu shop = CreateMenu(Menu_Shop);
 //	shop.ExitButton = false;
@@ -1362,7 +1438,7 @@ public int Menu_Shop(Menu menu, MenuAction action, int param1, int param2)
 	return 0;
 }
 // 获取特定类型商店拥有的物品总数
-stock int GetShopItemCount(int type)
+int GetSubShopItemNum(int type)
 {
 	if( (type + 1) <=  (MAXSHOPTYPE - 1) )
 		return (g_iShopArrayIndexOffest[type+1] - g_iShopArrayIndexOffest[type] );
@@ -1374,12 +1450,12 @@ stock int GetShopItemCount(int type)
 	return (SubShop_ItemDisplayName.Length - g_iShopArrayIndexOffest[type]);
 }
 
-stock void DisplayShopMenu_Sub(int client, int type)
+void DisplayShopMenu_Sub(int client, int type)
 {
 	Menu shop_sub = CreateMenu(Menu_Shop_Sub);
 	shop_sub.SetTitle("拥有[%dpt]  |  商店 - %s", PT_Get(client), g_sShopType[type]);
 
-	for(int i=0; i< GetShopItemCount(type); i++)
+	for(int i=0; i< GetSubShopItemNum(type); i++)
 	{
 		static char buffer[32], title[64], sCount[8], sPrice[8];
 		static int targetItemIndex, iCount, iPrice;
@@ -1489,7 +1565,7 @@ bool SetItems(int client, const char[] weapon, int ShopItemIndex=-1, int RandomP
 	return value;
 }
 
-stock void PT_BuyItem(int client, int SubShopItemIndex)
+void PT_BuyItem(int client, int SubShopItemIndex)
 {
 	if(GetClientTeam(client) != 2)
 	{
@@ -1537,9 +1613,9 @@ stock void PT_BuyItem(int client, int SubShopItemIndex)
 	{
 		// 忽略第一个索引，它是随机的物品
 		int MinItemIndex = g_iShopArrayIndexOffest[g_iClientViewShopType[client]] + 1;
-		int MaxItemIndex = MinItemIndex + GetShopItemCount(g_iClientViewShopType[client]) - 2;
+		int MaxItemIndex = MinItemIndex + GetSubShopItemNum(g_iClientViewShopType[client]) - 2;
 #if DEBUG	
-		PrintToChatAll("%d %d", GetShopItemCount(g_iClientViewShopType[client]), g_iClientViewShopType[client]);
+		PrintToChatAll("%d %d", GetSubShopItemNum(g_iClientViewShopType[client]), g_iClientViewShopType[client]);
 		PrintToChatAll("ShopType: %d, ItemIndextRange: Min=%d Max=%d", g_iClientViewShopType[client], MinItemIndex, MaxItemIndex);
 #endif
 		targetIteamIndex = GetRandomInt(MinItemIndex, MaxItemIndex);
@@ -1556,7 +1632,7 @@ stock void PT_BuyItem(int client, int SubShopItemIndex)
 	}
 	else	SubShop_ItemWeaponName.GetString(targetIteamIndex, sWeapon, sizeof(sWeapon) );
 
-	if(IsRealismMode)	item_price = item_price * 2;
+	if(IsRealismMode)	item_price =  RoundToNearest(item_price * REALISM_MODE_SPENT_MULT);
 
 	if(SetItems(client, sWeapon, targetIteamIndex, item_price) )
 	{
@@ -1577,7 +1653,7 @@ stock void PT_BuyItem(int client, int SubShopItemIndex)
 			CPrintToChat(client, "{blue}[商店]\x01 购买了 %s，剩余点数:{blue} %d ", sWeapon_DisplayName, PT_Get(client) );
 		}
 
-		if(IsRealismMode)	CPrintToChat(client, "{blue} \x01写实模式的点数花费：\x05200%" );
+		if(IsRealismMode)	CPrintToChat(client, "{blue} \x01写实模式的点数花费：\x05%.fx", REALISM_MODE_SPENT_MULT);
 
 		int count = GetClientShopItemCount(client, targetIteamIndex);
 		if(count != -2)			
@@ -1586,7 +1662,7 @@ stock void PT_BuyItem(int client, int SubShopItemIndex)
 	}
 }
 
-stock int PT_Add(int client, int pt)
+int PT_Add(int client, int pt)
 {
 	if(g_bCookieCached[client])	
 	{
@@ -1598,7 +1674,7 @@ stock int PT_Add(int client, int pt)
 	return -1;
 }
 
-stock int PT_Subtract(int client, int pt)
+int PT_Subtract(int client, int pt)
 {
 	if(g_bCookieCached[client])	
 	{
@@ -1610,7 +1686,7 @@ stock int PT_Subtract(int client, int pt)
 	return -1;
 }
 
-stock int PT_Get(int client)
+int PT_Get(int client)
 {
 	if(g_bCookieCached[client])	
 	{
@@ -1621,7 +1697,7 @@ stock int PT_Get(int client)
 }
 
 
-stock int PT_Update(int client, bool write)
+int PT_Update(int client, bool write)
 {
 	char sPT[16];
 	chPlayerPT = FindClientCookie("mpds_pt_re3");
@@ -1674,7 +1750,7 @@ void Event_Tank_Spawn(Event event, const char[] name, bool dontBroadcast)
 	}
 */
 	if(!IsValidHandle(g_hTankAliveTimer) )
-		g_hTankAliveTimer = CreateTimer(5.0, tTankAlive, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+		g_hTankAliveTimer = CreateTimer(TANK_ALIVE_TIMER_INTERVAL, tTankAlive, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
 
 void Event_Tank_Kiiled(Event event, const char[] name, bool dontBroadcast)
@@ -1688,20 +1764,20 @@ void Event_Tank_Kiiled(Event event, const char[] name, bool dontBroadcast)
 	if(solo && melee && IsClientInGame(killer) )
 	{
 		ServerCommand("[%s]: %N Event_Tank_Kiiled: solo AND melee", PLUGIN_NAME, killer);
-		PT_Add(killer, 500);
+		PT_Add(killer, TANK_SOLO_MELEE_REWARD);
 		CPrintToChatAll("\x03%N\x01仅使用近战武器杀死了一只Tank, 且没有其他人的伤害贡献！");
-		CPrintToChatAll("\x03%N\x01 获得了{blue} 500 pt\x01的奖励！");
+		CPrintToChatAll("\x03%N\x01 获得了{blue} %d pt\x01的奖励！", TANK_SOLO_MELEE_REWARD);
 		return;
 	}
 
-	CPrintToChatAll("\x03一只Tank已经死亡，所有幸存者获得了{blue} 10 pt的奖励.");
+	CPrintToChatAll("\x03一只Tank已经死亡，所有幸存者获得了{blue} %d pt的奖励.", TANK_REWARD);
 
-	int value = 10;
+	int value = TANK_REWARD;
 
 	if(melee)
 	{
-		CPrintToChatAll("\x03所有幸存者因Tank仅受到了近战伤害而得到的额外奖励: {blue} 10pt");
-		value = value + 10;
+		CPrintToChatAll("\x03所有幸存者因Tank仅受到了近战伤害而得到的额外奖励: {blue} %d pt", TANK_ONLY_MELEE_REWARD);
+		value = value + TANK_ONLY_MELEE_REWARD;
 	}
 
 	for(int i=1; i<MaxClients; i++)
@@ -1715,7 +1791,7 @@ void Event_Tank_Kiiled(Event event, const char[] name, bool dontBroadcast)
 		PT_Add(i, value);
 	}
 
-	g_iTankValue = g_iTankValue + value;
+	g_iTankPTChanged = g_iTankPTChanged + value;
 }
 
 Action tTankAlive(Handle Timer)
@@ -1754,16 +1830,16 @@ Action tTankAlive(Handle Timer)
 	{
 		if(find)
 		{
-			g_iTankAliveTimeCount++;
+			g_iTankAliveTime++;
 
 			// 存活时间等于或多余85秒后开始扣除，这是目前专家难度下烧死Tank所需时间的一半
-			if( !(17 < g_iTankAliveTimeCount) )
+			if( !(TANK_ALIVE_TIMER_COUNT < g_iTankAliveTime) )
 				return Plugin_Continue;
 
-			int value = 1;
+			int value = TANK_ALIVE_DEDUCT;
 // 早期版本具有阶段性倍增的点数扣除机制
 /*
-			if(g_iTankAliveTimeCount >= 34)
+			if(g_iTankAliveTime >= 34)
 				value = 2
 			...
 			......
@@ -1782,21 +1858,21 @@ Action tTankAlive(Handle Timer)
 				PT_Subtract(i, value);
 			}
 
-			g_iTankValue = g_iTankValue - value;
+			g_iTankPTChanged = g_iTankPTChanged - value;
 
 		}
 	}
 	else
 	{
 		char value[8];
-		IntToString(g_iTankValue, value, sizeof(value) );
-		if(g_iTankValue > 0)
+		IntToString(g_iTankPTChanged, value, sizeof(value) );
+		if(g_iTankPTChanged > 0)
 			Format(value, sizeof(value), "+%s", value);
 
 		PrintToChatAll("\x03自\x04Tank\x03生成以来，每个幸存者的点数变化为: \x05%s", value);
 
-		g_iTankAliveTimeCount = 0;
-		g_iTankValue = 0;
+		g_iTankAliveTime = 0;
+		g_iTankPTChanged = 0;
 
 		return Plugin_Stop;	
 	}
