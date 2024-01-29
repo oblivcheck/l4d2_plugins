@@ -3,7 +3,7 @@
 //---------------------------------------------------------------------------||
 /*
 bool    g_bPluginLibraryLoaded_mpds_shop;
-bool	g_bCookieCached[MAXPLAYERS+1];		// Importantly, PT_GET should always be executed correctly.
+bool	g_bCookieCached[MAXPLAYERS+1];		// Importantly, MPDS_Shop_PT_Get should always be executed correctly.
 public void OnLibraryAdded(const char[] name)
 {
 	if(strcmp(name, "mpds_shop") == 0)
@@ -41,7 +41,7 @@ void Example_function(int client)
 	{
 		if(g_bPluginLibraryLoaded_mpds_shop)
 		{
-			MPDS_Shop_PT_Get(client, 100)
+			MPDS_Shop_PT_Get(client);
 
 			... ...
 

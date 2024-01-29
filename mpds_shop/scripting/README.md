@@ -3,8 +3,7 @@
 ## About
 * Previously a private plugin on the server.
 
-* Earlier versions were based on [hp_rewards](https://forums.alliedmods.net/showthread.php?p=2411161)
-        * version 2.2
+* Earlier versions were based on [hp_rewards](https://forums.alliedmods.net/showthread.php?p=2411161) (version 2.2)
 
 ## Changes Log
 ~~~
