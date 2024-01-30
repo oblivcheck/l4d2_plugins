@@ -9,17 +9,25 @@
 
 #define PLUGIN_NAME             "MPDS Shop"
 #define PLUGIN_DESCRIPTION      "服务器商店与内嵌的击杀奖励系统"
-#define PLUGIN_VERSION          "REV 1.0.0 Beta 2"
+#define PLUGIN_VERSION          "REV 1.0.0"
 #define PLUGIN_AUTHOR           "oblivcheck"
 #define PLUGIN_URL              "https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop"
 
 /************************************************************************
 
 Changes Log:
+2024-01-30 (REV 1.0.0)
+	- Modify some comments
+	- Command "sm_hreset" is no longer executed when the plugin start.
+	- Set HL2 random stream when executing function LDW()
+	- Fixed: Item price display error in realism mode.
+	- Add some new macro definitions to modify the plugin settings.
+	- Add item stock type display to sub-shop menu title.
+		- Unfinished feature.
 
 2024-01-29 (REV 1.0.0 Beta 2)
-   - Add some macro definitions to modify the plugin settings.
-   - Organize the code.
+	- Add some macro definitions to modify the plugin settings.
+	- Organize the code.
 
 2024-01-29 (REV 1.0.0 Beta)
 	- Initial version.
@@ -64,14 +72,14 @@ bool	On;
 // 玩家单独击杀了Tank，并且仅使用近战武器，奖励的PT
 #define	TANK_SOLO_MELEE_REWARD		1000
 // 击杀TANK奖励PT
-#define	TANK_REWARD			10
+#define	TANK_REWARD			20
 // 仅使用近战击杀TANK额外的奖励PT
 #define	TANK_ONLY_MELEE_REWARD		50
 // TANK发现幸存者后，存活时间>=TANK_ALIVE_TIMER_COUNT*TANK_ALIVE_TIMER_INTERVAL
-//   后开始在每一次检查中扣除幸存者的PT
+//   后开始在次扫描中扣除幸存者的PT
 #define	TANK_ALIVE_TIMER_COUNT		35
 // 每一次扣除的数量
-#define	TANK_ALIVE_DEDUCT		1
+#define	TANK_ALIVE_DEDUCT_PT		2
 
 // 击杀特殊感染者恢复的临时生命值，
 //   在玩家当前总生命值没有超过MAX_HEALTH_DEF的情况下，
@@ -97,6 +105,12 @@ bool	On;
 // 是否允许使用除颤器
 // 对于MPDS服务器，它可能会导致崩溃
 #define	ALLOW_USE_DEFIB		0
+
+// 未完成...
+// 商店的库存剩余是团队共享还是特定玩家计算
+#define SHOP_STOCK_SHARE 	0
+// 团队共享库存时，项目实际库存=项目设置*SHOP_STOCK_SHARE_MULIT
+#define	SHOP_STOCK_SHARE_MULIT	2
 
 //---------------------------------------------------------------------------||
 
@@ -186,12 +200,17 @@ ArrayList SubShop_ItemWeaponAmmoMult;
 // 应该始终以tank_burn_duration_expert值的一半进行判断 170/2 = 85 (17次计时)
 // 追踪相应的Cvar变化？ 也许以后...
 int g_iTankAliveTime;
-// 用于与计算Tank作战过程中的点数变化，仅用于打印提示.
+// 用于计算与Tank作战过程中的点数变化，仅用于打印提示.
 int g_iTankPTChanged;
 
 int g_iClientCount_LDW[MAXPLAYERS+1];
 bool	IsRealismMode;
 ConVar	hIsRealismMode;
+
+static char g_sShopStockType[2][]={
+	"团队共享",
+	"每个玩家"
+};
 
 public Plugin:myinfo =
 {
@@ -276,16 +295,10 @@ public OnPluginStart()
 	RegAdminCmd("sm_hreset", cmd_hreset, ADMFLAG_ROOT);	
 
 	CacheShopItem();
-	// 除非插件在运行时被更换，否则这只会在插件的生命周期内创建一次，不需要担心影响CookieCached标记的正确性
-	CreateTimer(0.5, tDelayExecuteCMD);
-}
 
-Action tDelayExecuteCMD(Handle Timer)
-{
-	ServerCommand("sm_hreset");	
-	return Plugin_Continue;
+	ResetClientShopItemCount();
+	ResetClientCount_LDW();
 }
-
 //---------------------------------------------------------------------------||
 //              Cvar变更
 //---------------------------------------------------------------------------||
@@ -297,6 +310,7 @@ public void Event_ConVarChanged(ConVar convar, const char[] oldValue, const char
 		IsRealismMode = true;
 	else	IsRealismMode = false;
 }
+// 服务器运行中重新加载插件需要执行一次此命令
 Action cmd_hreset(int client, int args)
 {
 	for(int i=1; i<MaxClients; i++)
@@ -938,6 +952,8 @@ Action cmd_ldw(int client, int args)
 
 void LDW(int client, bool limit=false)
 {
+	SetRandomSeed(RoundToFloor(GetEngineTime() ) );
+
 	if(limit)
 	{
 		if(g_iClientCount_LDW[client] == 0)
@@ -947,7 +963,7 @@ void LDW(int client, bool limit=false)
 		}
 		g_iClientCount_LDW[client]--;
 	}
-
+	
 	float value = GetRandomFloat(0.00, 1000.00);
 	if(value < 400.00)
 	{
@@ -1145,25 +1161,25 @@ void CacheShopItem()
 	// 三级商店
 	SubShop_ItemDisplayName.PushString("随机的物品");
 	SubShop_ItemWeaponName.PushString("");	
-	SubShop_ItemWeaponPrice.Push(30);
+	SubShop_ItemWeaponPrice.Push(80);
 	SubShop_ItemWeaponCount.Push(-2);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 	SubShop_ItemDisplayName.PushString("M60轻机枪");
 	SubShop_ItemWeaponName.PushString("weapon_rifle_m60");	
-	SubShop_ItemWeaponPrice.Push(15);
+	SubShop_ItemWeaponPrice.Push(20);
 	SubShop_ItemWeaponCount.Push(2);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 	SubShop_ItemDisplayName.PushString("榴弹发射器");
 	SubShop_ItemWeaponName.PushString("weapon_grenade_launcher");	
-	SubShop_ItemWeaponPrice.Push(15);
+	SubShop_ItemWeaponPrice.Push(20);
 	SubShop_ItemWeaponCount.Push(2);
-	SubShop_ItemWeaponAmmoMult.Push(18);
+	SubShop_ItemWeaponAmmoMult.Push(12);
 
 	SubShop_ItemDisplayName.PushString("电锯");
 	SubShop_ItemWeaponName.PushString("weapon_chainsaw");	
-	SubShop_ItemWeaponPrice.Push(20);
+	SubShop_ItemWeaponPrice.Push(30);
 	SubShop_ItemWeaponCount.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
@@ -1453,7 +1469,7 @@ int GetSubShopItemNum(int type)
 void DisplayShopMenu_Sub(int client, int type)
 {
 	Menu shop_sub = CreateMenu(Menu_Shop_Sub);
-	shop_sub.SetTitle("拥有[%dpt]  |  商店 - %s", PT_Get(client), g_sShopType[type]);
+	shop_sub.SetTitle("拥有[%dpt] | 商店 - %s | 库存计算方式[%s]", PT_Get(client), g_sShopType[type], SHOP_STOCK_SHARE ? g_sShopStockType[0] : g_sShopStockType[1]);
 
 	for(int i=0; i< GetSubShopItemNum(type); i++)
 	{
@@ -1478,7 +1494,7 @@ void DisplayShopMenu_Sub(int client, int type)
 		else
 		{
 			if(IsRealismMode)
-				Format(sPrice, sizeof(sPrice), "%dpt", iPrice * 2);
+				Format(sPrice, sizeof(sPrice), "%dpt", RoundToNearest(iPrice * REALISM_MODE_SPENT_MULT) );
 			else	Format(sPrice, sizeof(sPrice), "%dpt", iPrice );
 		}
 		Format(title, sizeof(title), "[%s] %s [剩余: %s]", sPrice, buffer, sCount );
@@ -1653,7 +1669,7 @@ void PT_BuyItem(int client, int SubShopItemIndex)
 			CPrintToChat(client, "{blue}[商店]\x01 购买了 %s，剩余点数:{blue} %d ", sWeapon_DisplayName, PT_Get(client) );
 		}
 
-		if(IsRealismMode)	CPrintToChat(client, "{blue} \x01写实模式的点数花费：\x05%.fx", REALISM_MODE_SPENT_MULT);
+		if(IsRealismMode)	CPrintToChat(client, "{blue} \x01写实模式的点数花费：\x05%.2fx", REALISM_MODE_SPENT_MULT);
 
 		int count = GetClientShopItemCount(client, targetIteamIndex);
 		if(count != -2)			
@@ -1836,7 +1852,7 @@ Action tTankAlive(Handle Timer)
 			if( !(TANK_ALIVE_TIMER_COUNT < g_iTankAliveTime) )
 				return Plugin_Continue;
 
-			int value = TANK_ALIVE_DEDUCT;
+			int value = TANK_ALIVE_DEDUCT_PT;
 // 早期版本具有阶段性倍增的点数扣除机制
 /*
 			if(g_iTankAliveTime >= 34)
