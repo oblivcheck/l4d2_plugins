@@ -9,15 +9,20 @@
 
 #define PLUGIN_NAME             "MPDS Shop"
 #define PLUGIN_DESCRIPTION      "服务器商店与内嵌的击杀奖励系统"
-#define PLUGIN_VERSION          "REV 1.0.0"
+#define PLUGIN_VERSION          "REV 1.0.1"
 #define PLUGIN_AUTHOR           "oblivcheck"
 #define PLUGIN_URL              "https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop"
 
 /************************************************************************
-
 Changes Log:
+
+2024-01-31 (REV 1.0.1)
+	- Fixed：For special infected, kills without reward will still send msg to the player.
+	- Fixed："SHOP_STOCK_SHARE" compile warning.
+	- Modify some comments.
+
 2024-01-30 (REV 1.0.0)
-	- Modify some comments
+	- Modify some comments.
 	- Command "sm_hreset" is no longer executed when the plugin start.
 	- Set HL2 random stream when executing function LDW()
 	- Fixed: Item price display error in realism mode.
@@ -72,12 +77,12 @@ bool	On;
 // 玩家单独击杀了Tank，并且仅使用近战武器，奖励的PT
 #define	TANK_SOLO_MELEE_REWARD		1000
 // 击杀TANK奖励PT
-#define	TANK_REWARD			20
+#define	TANK_REWARD			10
 // 仅使用近战击杀TANK额外的奖励PT
 #define	TANK_ONLY_MELEE_REWARD		50
 // TANK发现幸存者后，存活时间>=TANK_ALIVE_TIMER_COUNT*TANK_ALIVE_TIMER_INTERVAL
 //   后开始在次扫描中扣除幸存者的PT
-#define	TANK_ALIVE_TIMER_COUNT		35
+#define	TANK_ALIVE_TIMER_COUNT		24
 // 每一次扣除的数量
 #define	TANK_ALIVE_DEDUCT_PT		2
 
@@ -785,6 +790,9 @@ public Action Event_Player_Death(Event event, const char[] name, bool dontBroadc
 			}
 		}
 
+		if(!sTarget[0])
+			return Plugin_Continue;
+
 		float client_health = float(GetClientHealth(client)) + ML4D_GetPlayerTempHealth(client);
 		if((client_health + Add_Health) < float(MAX_HEALTH_DEF) )
 			ML4D_SetPlayerTempHealthFloat(client, Add_Health + ML4D_GetPlayerTempHealth(client) );
@@ -1304,7 +1312,7 @@ void CacheShopItem()
 	SubShop_ItemWeaponCount.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
-	SubShop_ItemDisplayName.PushString("药丸");
+	SubShop_ItemDisplayName.PushString("止痛药");
 	SubShop_ItemWeaponName.PushString("weapon_pain_pills");	
 	SubShop_ItemWeaponPrice.Push(8);
 	SubShop_ItemWeaponCount.Push(2);
@@ -1469,8 +1477,11 @@ int GetSubShopItemNum(int type)
 void DisplayShopMenu_Sub(int client, int type)
 {
 	Menu shop_sub = CreateMenu(Menu_Shop_Sub);
-	shop_sub.SetTitle("拥有[%dpt] | 商店 - %s | 库存计算方式[%s]", PT_Get(client), g_sShopType[type], SHOP_STOCK_SHARE ? g_sShopStockType[0] : g_sShopStockType[1]);
-
+#if SHOP_STOCK_SHARE
+	shop_sub.SetTitle("拥有[%dpt] | 商店 - %s | 库存计算方式[%s]", PT_Get(client), g_sShopType[type], g_sShopStockType[0]);
+#else
+	shop_sub.SetTitle("拥有[%dpt] | 商店 - %s | 库存计算方式[%s]", PT_Get(client), g_sShopType[type], g_sShopStockType[1]);
+#endif
 	for(int i=0; i< GetSubShopItemNum(type); i++)
 	{
 		static char buffer[32], title[64], sCount[8], sPrice[8];

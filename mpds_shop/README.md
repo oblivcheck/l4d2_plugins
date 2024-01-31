@@ -7,6 +7,12 @@
 
 ## Changes Log
 ~~~
+
+2024-01-31 (REV 1.0.1)
+        - Fixed：For special infected, kills without reward will still send msg to the player.
+        - Fixed："SHOP_STOCK_SHARE" compile warning.
+        - Modify some comments.
+
 2024-01-30 (REV 1.0.0)
         - Modify some comments
         - Command "sm_hreset" is no longer executed when the plugin start.
@@ -75,12 +81,12 @@ sm_hreset
 // 玩家单独击杀了Tank，并且仅使用近战武器，奖励的PT
 #define TANK_SOLO_MELEE_REWARD          1000
 // 击杀TANK奖励PT
-#define TANK_REWARD                     20
+#define TANK_REWARD                     10
 // 仅使用近战击杀TANK额外的奖励PT
 #define TANK_ONLY_MELEE_REWARD          50
 // TANK发现幸存者后，存活时间>=TANK_ALIVE_TIMER_COUNT*TANK_ALIVE_TIMER_INTERVAL
 //   后开始在次扫描中扣除幸存者的PT
-#define TANK_ALIVE_TIMER_COUNT          35
+#define TANK_ALIVE_TIMER_COUNT          24
 // 每一次扣除的数量
 #define TANK_ALIVE_DEDUCT_PT            2
 
