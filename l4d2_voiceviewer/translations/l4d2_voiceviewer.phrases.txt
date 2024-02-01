@@ -37,6 +37,7 @@
 		"#format"       "{1:N}"
 		"en"	"{1} is talking."
 		"chi"	"{1} 正在说话."
+		"ru"	"{1} разговаривает."
 	}
 
 	"Chat_PlayerSpeakingEnd"
@@ -44,5 +45,6 @@
 		"#format"       "{1:N}"
 		"en"	"{1} stopped talking."
 		"chi"	"{1} 停止了说话."
+		"en"	"{1} закончил разговор."
 	}
 }
