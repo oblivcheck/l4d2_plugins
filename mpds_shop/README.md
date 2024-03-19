@@ -7,6 +7,7 @@
 #include <mpds_shop>
 ```
 **Install plugin:**
+
 [l4d2_fireworks](https://forums.alliedmods.net/showthread.php?p=1441088)
 
 [l4dinfectedbots v2.8.8fork](https://github.com/oblivcheck/l4d2_plugins/blob/master/l4dinfectedbots)
