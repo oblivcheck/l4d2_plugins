@@ -75,6 +75,8 @@ l4d2_voiceviewer_type "2"
 
 - French *(provided by "Peter Brev")*
 
+- Russian *(provided by "JustMadMan")*
+
 ## Chnages Log
 ~~~
 2024-01-24 (1.6)
