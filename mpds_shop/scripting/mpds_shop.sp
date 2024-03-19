@@ -9,12 +9,45 @@
 
 #define PLUGIN_NAME             "MPDS Shop"
 #define PLUGIN_DESCRIPTION      "服务器商店与内嵌的击杀奖励系统"
-#define PLUGIN_VERSION          "REV 1.0.1"
+#define PLUGIN_VERSION          "REV 1.0.3 Beta"
 #define PLUGIN_AUTHOR           "oblivcheck"
 #define PLUGIN_URL              "https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop"
 
 /************************************************************************
 Changes Log:
+
+2024-02-03 (REV 1.0.3 Beta)
+  - Fixed: command "!ldw" occasionally fail to kill player.
+
+  - Fixed: players can rejoin the server to refresh store item inventory.
+
+  - Allow dynamic setting of item prices
+      - Imperfect functionality.
+
+  - Updated chat messages && Changed some plugin options.
+    - Latest version on my server.
+
+  - Add shop special items
+    - Launch firework.
+      - Required plugin: [l4d2_fireworks]
+        - (https://forums.alliedmods.net/showthread.php?p=1441088)
+
+    - Spawn and control a Tank.
+      - Required plugin: [l4dinfectedbots]
+        - Need to use my fork (based v2.8.8)
+        - (https://github.com/oblivcheck/l4d2_plugins/blob/master/l4dinfectedbots)
+
+      - Many known issues exist, and we should utilize the latest version of 'l4dinfectedbots' and re-implement this functionality.
+
+  -  Code adjustments
+    - (i < MaxClients) -> (i <= MaxClients)
+  
+2024-02-03 (REV 1.0.2 Not Release)
+	- Command "!buy"
+    - Rmove chat info “testing"
+
+	- Command "ldw" 
+    - now has a chance to kill the player.
 
 2024-01-31 (REV 1.0.1)
 	- Fixed：For special infected, kills without reward will still send msg to the player.
@@ -59,11 +92,11 @@ bool	On;
 #define	MAX_HP			150
 
 // 帮助队友获得的奖励：pt与永久生命值
-#define	DEFIB_REWARD		60
+#define	DEFIB_REWARD		40
 #define	DEFIB_REWARD_PT		20
 #define	HEAL_REWARD		20
 #define	HEAL_REWARD_PT		5
-#define	REVIVE_REWARD		30
+#define	REVIVE_REWARD		20
 #define REVIVE_REWARD_PT	5
 // 如果玩家挂边，获取他当前倒地生命值的Tick间隔
 #define	HANGING_CHECK_INTERVAL	45
@@ -77,7 +110,7 @@ bool	On;
 // 玩家单独击杀了Tank，并且仅使用近战武器，奖励的PT
 #define	TANK_SOLO_MELEE_REWARD		1000
 // 击杀TANK奖励PT
-#define	TANK_REWARD			10
+#define	TANK_REWARD			5
 // 仅使用近战击杀TANK额外的奖励PT
 #define	TANK_ONLY_MELEE_REWARD		50
 // TANK发现幸存者后，存活时间>=TANK_ALIVE_TIMER_COUNT*TANK_ALIVE_TIMER_INTERVAL
@@ -89,12 +122,12 @@ bool	On;
 // 击杀特殊感染者恢复的临时生命值，
 //   在玩家当前总生命值没有超过MAX_HEALTH_DEF的情况下，
 //     这不会让生命值高于MAX_HEALTH_DEF
-#define	BOOMER_REWARD		10.0
-#define	SPITTER_REWARD		10.0
-#define	SMOKER_REWARD		14.0
-#define	JOCKEY_REWARD		14.0
-#define	HUNTER_REWARD		18.0
-#define	CHARGER_REWARD		20.0
+#define	BOOMER_REWARD		6.0
+#define	SPITTER_REWARD		6.0
+#define	SMOKER_REWARD		10.0
+#define	JOCKEY_REWARD		10.0
+#define	HUNTER_REWARD		12.0
+#define	CHARGER_REWARD		16.0
 
 /***商店物品的详细属性在 CacheShopItem() 中进行设置***/
 // 允许抽奖的次数，如果被限制了；如果玩家的pt点数在花费LDW_PRICE之后将为负数，则启用限制
@@ -193,7 +226,8 @@ bool	g_bCookieCached[MAXPLAYERS+1];
 // 硬编码数组第二维的大小，这应该大于商店中的物品总数
 #define SHOP_ITEM_NUM		64
 // 为什么不使用ADT，因为早期版本中出现了问题，而我不想继续检查，故而直接硬编码大小
-int g_iClientShopItemRemainingQuantity[MAXPLAYERS+1][SHOP_ITEM_NUM];
+// 末尾索引(SHOP_ITEM_NUM+1)记录客户端的STEAMID
+int g_iClientShopItemRemainingQuantity[128][SHOP_ITEM_NUM+1];
 
 // MethodMap... 也许以后
 ArrayList SubShop_ItemDisplayName;
@@ -211,6 +245,10 @@ int g_iTankPTChanged;
 int g_iClientCount_LDW[MAXPLAYERS+1];
 bool	IsRealismMode;
 ConVar	hIsRealismMode;
+
+int g_iTank_player=-1;
+bool g_bSpawnPlayerTank;
+#define   PlayerTankSpawned_Hint    "ui/gascan_spawn.wav"
 
 static char g_sShopStockType[2][]={
 	"团队共享",
@@ -277,7 +315,7 @@ public OnPluginStart()
 // 现在不需要这项功能，这实际上还大幅度降低了服务器的压力
 //	HookEvent("infected_hurt", Event_Infected_Hurt);
 	HookEvent("tank_spawn", Event_Tank_Spawn);
-	HookEvent("tank_killed", Event_Tank_Kiiled);	
+	HookEvent("tank_killed", Event_Tank_Killed);	
 	HookEvent("round_start", Event_Round_Start);
 	HookEvent("round_end", Event_PluginReset);
 	HookEvent("finale_win", Event_PluginReset);
@@ -301,7 +339,7 @@ public OnPluginStart()
 
 	CacheShopItem();
 
-	ResetClientShopItemCount();
+	ResetClientShopItemInventory();
 	ResetClientCount_LDW();
 }
 //---------------------------------------------------------------------------||
@@ -318,7 +356,10 @@ public void Event_ConVarChanged(ConVar convar, const char[] oldValue, const char
 // 服务器运行中重新加载插件需要执行一次此命令
 Action cmd_hreset(int client, int args)
 {
-	for(int i=1; i<MaxClients; i++)
+	ResetClientShopItemInventory();
+	ResetClientCount_LDW();
+
+	for(int i=1; i<=MaxClients; i++)
 	{
 		g_bCookieCached[i] = true;
 		if(IsClientInGame(i) )
@@ -329,13 +370,30 @@ Action cmd_hreset(int client, int args)
 				int cookieValue = StringToInt(cC);
 				ReplyToCommand(client, "%d#%N: %s#%d", i, i, cC, cookieValue);
 				g_iPlayerPT[i] = PT_Get(i);			
-				
+
+        int id = GetSteamAccountID(i);
+        if(id != 0)
+        {
+          int idx = ShopItemInventory_GetClientIndexOfSteamID(id);
+          if(idx == -1)
+          {
+            // 只要单张地图中加入的玩家没有超过128个，那就没有问题
+            for(int p=0;p<128;p++)
+              if(g_iClientShopItemRemainingQuantity[p][SHOP_ITEM_NUM] == 0 || g_iClientShopItemRemainingQuantity[p][SHOP_ITEM_NUM] == -1)
+              {
+                g_iClientShopItemRemainingQuantity[p][SHOP_ITEM_NUM] = id;
+                PrintToServer("\n%N#库存记录idx=%d",client, p);
+                break;
+              }
+          }
+          else  PrintToServer("\nERROR: cmd_hreset(); %N# target idx == 0", client);
+        }
+        else  PrintToServer("\nERROR: cmd_hreset(); %N# id == 0", client);
 			}
 	}
 
-	ResetClientShopItemCount();
-	ResetClientCount_LDW();
 	ReplyToCommand(client, "sm_hreset: 执行完毕");
+
 	return Plugin_Continue;
 }
 
@@ -404,15 +462,20 @@ public Action Event_Infected_Hurt(Event event, const char[] name, bool dontBroad
 public void OnClientDisconnect(int client)
 {
 	//g_iInfectedKilledCount[client] = 0;	
-	g_bHero[client] = false;
+  g_bHero[client] = false;
 
-	if(!IsFakeClient(client) )
-		PT_Update(client, true);
+  if(!IsFakeClient(client) )
+    PT_Update(client, true);
 	// 因为是有间隔的扫描
-	g_bPlayerHanging[client] = false;
+  g_bPlayerHanging[client] = false;
 
 	// Cookie每一次连接都会重新加载
-	g_bCookieCached[client] = false;
+  g_bCookieCached[client] = false;
+
+//  int id = GetSteamAccountID(client);
+//  if(id != 0)
+//    g_iClientShopItemRemainingQuantity[client][SHOP_ITEM_NUM] = -1;
+//  else  PrintToServer("\nERROR: OnClientDisconnect(); %N# id == 0", client);
 }
 
 //---------------------------------------------------------------------------||
@@ -641,6 +704,9 @@ public OnMapStart()
 {
 	On = true;
 
+  PrefetchSound(PlayerTankSpawned_Hint);
+  PrecacheSound(PlayerTankSpawned_Hint);
+
 	for( int i = 0; i < MAX_WEAPONS2; i++ )
 		PrecacheModel(g_sWeaponModels2[i], true);
 
@@ -716,7 +782,7 @@ void PrecacheParticle(const char[] sEffectName)
 public OnMapEnd()
 {
 	ResetClientCount_LDW();
-	ResetClientShopItemCount();
+	ResetClientShopItemInventory();
 	g_iTankAliveTime = 0;
 	g_iTankPTChanged = 0;
 	On = false;
@@ -724,6 +790,8 @@ public OnMapEnd()
 
 public Action Event_Round_Start(Event event, const char[] name, bool dontBroadcast)
 {
+  CreateTimer(0.5, tDelaySwitchteam, -1);
+
 	if(On)
 	{
 		return Plugin_Continue;
@@ -735,6 +803,12 @@ public Action Event_Round_Start(Event event, const char[] name, bool dontBroadca
 
 public Action Event_PluginReset(Event event, const char[] name, bool dontBroadcast)
 {
+
+  if(g_iTank_player != -1)
+  {
+    SDKHooks_TakeDamage(g_iTank_player, 0, 0, 100000.0, DMG_FALL);
+  }
+
 	if(!On)
 	{
 		return Plugin_Continue;
@@ -748,6 +822,38 @@ public Action Event_PluginReset(Event event, const char[] name, bool dontBroadca
 //---------------------------------------------------------------------------||
 public Action Event_Player_Death(Event event, const char[] name, bool dontBroadcast)
 {
+  int tank_player = GetClientOfUserId(GetEventInt(event, "userid") );
+
+  if(tank_player == g_iTank_player)
+  {
+
+    CreateTimer(0.1, tDelaySwitchteam, tank_player);
+    g_iTank_player = -1;
+
+  	int killer  = GetClientOfUserId(GetEventInt(event, "attacker"));
+		if(killer <= 0 || killer > MaxClients || !IsClientInGame(killer) || GetClientTeam(killer) != 2 )
+      return Plugin_Continue;
+
+  	CPrintToChatAll("\x03一只由玩家控制的Tank已经死亡，所有幸存者获得了{blue} %d pt的奖励.", TANK_REWARD*2);
+
+  	int value = TANK_REWARD * 2;
+
+  	for(int i=1; i<=MaxClients; i++)
+  	{
+  		if(!IsClientInGame(i) )
+  			continue;
+
+  		if(GetClientTeam(i) != 2)
+  			continue;
+
+  		PT_Add(i, value);
+  	}
+
+  	g_iTankPTChanged = g_iTankPTChanged + value;
+
+    return Plugin_Continue;
+  }
+
 	if(On)
 	{
 		int target = GetClientOfUserId(GetEventInt(event, "userid") );
@@ -810,21 +916,79 @@ public Action Event_Player_Death(Event event, const char[] name, bool dontBroadc
 	return Plugin_Continue;
 }
 
+Action tDelaySwitchteam(Handle Timer, any client)
+{
+  if(client == -1)
+  {
+    for(int i=1; i<=MaxClients; i++)
+    {
+      if(IsClientInGame(i) )
+      {
+        if(GetClientTeam(i) == 3)
+        {
+          // 此命令会在下一帧才传送机器人
+          ExecuteRootCommand(i, "sm_muladdbot");
+          CreateTimer(0.1, tDelayExecuteRootCommand, i);      
+          return Plugin_Continue;
+        }
+      }
+    }
+    return Plugin_Continue;
+  }
+
+  if(IsClientInGame(client) )
+  {
+    if(GetClientTeam(client) == 3)
+    {
+      ExecuteRootCommand(client, "sm_muladdbot");
+      CreateTimer(0.1, tDelayExecuteRootCommand, client);
+    }
+  }
+  return Plugin_Continue;
+}
+
+Action  tDelayExecuteRootCommand(Handle Timer, any client)
+{
+  if(IsClientInGame(client) )
+    if(GetClientTeam(client) == 3)
+      ExecuteRootCommand(client, "sm_js");
+
+  return Plugin_Continue;
+}
 //---------------------------------------------------------------------------||
 //			pt系统
 //---------------------------------------------------------------------------||
 public void OnClientCookiesCached(int client)
 {
-	if(IsFakeClient(client) )
-		return;
-	
-	g_bCookieCached[client] = true;
+  if(IsFakeClient(client) )
+    return;
 
-        char sPT[16];
-        chPlayerPT = FindClientCookie("mpds_pt_re3");
-        GetClientCookie(client, chPlayerPT, sPT, sizeof(sPT) );
-	PrintToServer("商店：OnClientCookiesCached: %s", sPT);
-        g_iPlayerPT[client] = StringToInt(sPT);
+  int id = GetSteamAccountID(client);
+  if(id != 0)
+  {
+    int idx = ShopItemInventory_GetClientIndexOfSteamID(id);
+    if(idx == -1)
+    {
+      // 只要单张地图中加入的玩家没有超过128个，那就没有问题
+      for(int i=0;i<128;i++)
+        if(g_iClientShopItemRemainingQuantity[i][SHOP_ITEM_NUM] == 0 || g_iClientShopItemRemainingQuantity[i][SHOP_ITEM_NUM] == -1)
+        {
+          g_iClientShopItemRemainingQuantity[i][SHOP_ITEM_NUM] = id;
+          PrintToServer("\n%N#库存记录idx=%d",client, i);
+          break;
+        }
+    }
+    else  PrintToServer("\nERROR: OnClientCookiesCached(); %N# target idx == 0", client);
+  }
+  else  PrintToServer("\nERROR: OnClientCookiesCached(); %N# id == 0", client);
+
+  g_bCookieCached[client] = true;
+
+  char sPT[16];
+  chPlayerPT = FindClientCookie("mpds_pt_re3");
+  GetClientCookie(client, chPlayerPT, sPT, sizeof(sPT) );
+  PrintToServer("商店：OnClientCookiesCached: %s", sPT);
+  g_iPlayerPT[client] = StringToInt(sPT);
 }
 
 void ResetClientCount_LDW()
@@ -833,26 +997,57 @@ void ResetClientCount_LDW()
 		g_iClientCount_LDW[i] = -1;
 }
 // 不在章节失败时刷新
-void ResetClientShopItemCount()
+void ResetClientShopItemInventory()
 {
 	PrintToServer("\n[商店] 重置客户端物品可购买物品的剩余数量\n");
 
-	for(int client=1; client<MaxClients; client++)
-		for(int idx=0; idx< SHOP_ITEM_NUM; idx++)
+	for(int client=0; client<128; client++)
+		for(int idx=0; idx< SHOP_ITEM_NUM+1; idx++)
 			g_iClientShopItemRemainingQuantity[client][idx] = -1;
 }
 
-void SetClientShopItemCount(client, item, value)
+void SetClientShopItemInventory(client, item, value)
 {
-	g_iClientShopItemRemainingQuantity[client][item] = value;
+  int id = GetSteamAccountID(client);
+  if(id != 0)
+  {
+    int idx = ShopItemInventory_GetClientIndexOfSteamID(id);
+    if(idx != -1)
+    	g_iClientShopItemRemainingQuantity[idx][item] = value;
+    else  PrintToChatAll("ERROR: SetClientShopItemInventory(); %N# target idx == 0", client);
+  }
+  else  PrintToChatAll("ERROR: SetClientShopItemInventory(); %N# id == 0", client);
 }
 
-int GetClientShopItemCount(client, item)
+int GetClientShopItemInventory(client, item)
 {
-	if(g_iClientShopItemRemainingQuantity[client][item] == -1 )
-		return SubShop_ItemWeaponCount.Get(item);
+  int id = GetSteamAccountID(client);
+  if(id != 0)
+  {
+    int idx = ShopItemInventory_GetClientIndexOfSteamID(id);
+    if(idx != -1)
+    {
+    	if(g_iClientShopItemRemainingQuantity[idx][item] == -1 )
+	    	return SubShop_ItemWeaponCount.Get(item);
 	
-	return  g_iClientShopItemRemainingQuantity[client][item];
+    	return  g_iClientShopItemRemainingQuantity[idx][item];
+    }
+    else  PrintToChatAll("ERROR: GetClientShopItemInventory(); %N# target idx == 0", client);
+  }
+  else  PrintToChatAll("ERROR: GetClientShopItemInventory(); %N# id == 0", client);
+
+  return 0;
+}
+
+int ShopItemInventory_GetClientIndexOfSteamID(int id)
+{
+  for(int i=0; i<128; i++)
+  {
+    if(g_iClientShopItemRemainingQuantity[i][SHOP_ITEM_NUM] == id)
+      return i;
+  }
+
+  return -1;
 }
 
 Action cmd_buy(int client, int args)
@@ -901,7 +1096,6 @@ Action cmd_buy(int client, int args)
 			CPrintToChat(client, "{blue}[商店]\x01 相关数据正在加载，请稍后再试...");
 			return Plugin_Continue;
 		}	
-		CPrintToChat(client, "{blue}[商店]\x01 商店系统目前是测试状态，内容可能经常变化...");
 		CPrintToChat(client, "{blue}[商店]\x01 拥有的点数(pt)剩余 {blue}%d", PT_Get(client));
 		CPrintToChat(client, "{blue}[商店]\x01 花费{blue} %d pt\x01以使用\x05!ldw\x01命令进行抽奖", LDW_PRICE);
 		DisplayShopMenu(client);
@@ -960,19 +1154,27 @@ Action cmd_ldw(int client, int args)
 
 void LDW(int client, bool limit=false)
 {
-	SetRandomSeed(RoundToFloor(GetEngineTime() ) );
+  SetRandomSeed(RoundToFloor(GetEngineTime() ) );
 
-	if(limit)
-	{
-		if(g_iClientCount_LDW[client] == 0)
-		{
-			CPrintToChat(client, "{blue}[商店-抽奖]\x01 你当前章节剩余的抽奖次数不足...");
-			return;
-		}
-		g_iClientCount_LDW[client]--;
-	}
+  if(limit)
+  {
+    if(g_iClientCount_LDW[client] == 0)
+    {
+      CPrintToChat(client, "{blue}[商店-抽奖]\x01 你当前章节剩余的抽奖次数不足...");
+      return;
+    }
+    g_iClientCount_LDW[client]--;
+  }
 	
-	float value = GetRandomFloat(0.00, 1000.00);
+  float value = GetRandomFloat(0.00, 1000.00);
+  if(value < 100.00)
+  {
+    ServerCommand("sm_slay #%d", GetClientUserId(client));
+    //SDKHooks_TakeDamage(client, 0, 0, 1000.0, DMG_FALL);    
+    CPrintToChatAll("{blue}[商店-抽奖]\x01 %N 花费{blue} %d pt\x01获得了\x05解脱...", client, LDW_PRICE);
+    CPrintToChat(client, "{blue} 剩余: %d pt", PT_Get(client) );
+		return;		
+	}
 	if(value < 400.00)
 	{
 		int pt = RoundToNearest(GetRandomFloat(-60.00, 30.00) );
@@ -986,7 +1188,7 @@ void LDW(int client, bool limit=false)
 	while(allow)
 	{		
 		int idx = RoundToNearest(GetRandomFloat(0.00, float(SubShop_ItemDisplayName.Length-1) ) );
-		if(SubShop_ItemWeaponPrice.Get(idx) == -1 )
+		if(Get_SubShopItemWeaponPrice(idx, client) == -1 )
 			continue;
 		char name[64];
 		SubShop_ItemWeaponName.GetString(idx, name, sizeof(name) );
@@ -1033,6 +1235,8 @@ void CacheShopItem()
 	SubShop_ItemDisplayName = CreateArray(32);
 	SubShop_ItemWeaponName = CreateArray(32);
 	// -1 = 锁定的物品
+  // -2 = 依据玩家当前的pt数量来实时计算价格，基础值+百分比计算=最终价格
+  //  在SubShop_ItemWeaponName()中设置价格 other+100+10 | other+基础价格+百分比
 	// 价格
 	SubShop_ItemWeaponPrice = CreateArray(1);
 	// -2 = 无限
@@ -1215,7 +1419,7 @@ void CacheShopItem()
 	SubShop_ItemDisplayName.PushString("平底锅");
 	SubShop_ItemWeaponName.PushString("weapon_melee+frying_pan");	
 	SubShop_ItemWeaponPrice.Push(10);
-	SubShop_ItemWeaponCount.Push(2);
+	SubShop_ItemWeaponCount.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 
@@ -1229,21 +1433,21 @@ void CacheShopItem()
 	SubShop_ItemDisplayName.PushString("棒球棍");
 	SubShop_ItemWeaponName.PushString("weapon_melee+baseball_bat");	
 	SubShop_ItemWeaponPrice.Push(10);
-	SubShop_ItemWeaponCount.Push(2);
+	SubShop_ItemWeaponCount.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 
 	SubShop_ItemDisplayName.PushString("撬棍");
 	SubShop_ItemWeaponName.PushString("weapon_melee+crowbar");	
 	SubShop_ItemWeaponPrice.Push(10);
-	SubShop_ItemWeaponCount.Push(2);
+	SubShop_ItemWeaponCount.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 
 	SubShop_ItemDisplayName.PushString("板球棒");
 	SubShop_ItemWeaponName.PushString("weapon_melee+cricket_bat");	
 	SubShop_ItemWeaponPrice.Push(10);
-	SubShop_ItemWeaponCount.Push(2);
+	SubShop_ItemWeaponCount.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 
@@ -1275,7 +1479,7 @@ void CacheShopItem()
 	SubShop_ItemDisplayName.PushString("高尔夫球杆");
 	SubShop_ItemWeaponName.PushString("weapon_melee+golfclub");	
 	SubShop_ItemWeaponPrice.Push(10);
-	SubShop_ItemWeaponCount.Push(2);
+	SubShop_ItemWeaponCount.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 	SubShop_ItemDisplayName.PushString("铁铲");
@@ -1398,6 +1602,18 @@ void CacheShopItem()
 	SubShop_ItemWeaponCount.Push(0);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
+	SubShop_ItemDisplayName.PushString("烟花发射！");
+	SubShop_ItemWeaponName.PushString("cmd+sm_fireworks");	
+	SubShop_ItemWeaponPrice.Push(0);
+	SubShop_ItemWeaponCount.Push(8);
+	SubShop_ItemWeaponAmmoMult.Push(-2);
+
+	SubShop_ItemDisplayName.PushString("生成并控制一只Tank");
+	SubShop_ItemWeaponName.PushString("other_spawntk+45+0.15");	
+	SubShop_ItemWeaponPrice.Push(-1);
+	SubShop_ItemWeaponCount.Push(1);
+	SubShop_ItemWeaponAmmoMult.Push(-2);
+
 	SubShop_ItemDisplayName.PushString("自杀并复活(重生)-待定");
 	SubShop_ItemWeaponName.PushString("other+");	
 	SubShop_ItemWeaponPrice.Push(-1);
@@ -1430,6 +1646,21 @@ void CacheShopItem()
 
 }
 
+int Get_SubShopItemWeaponPrice(int ShopItemIndex, int client)
+{
+  // 依据客户端当前拥有的pt，按百分比计算价格
+  if(SubShop_ItemWeaponPrice.Get(ShopItemIndex) == -2)
+  {
+    char name[64];
+    SubShop_ItemWeaponName.GetString(ShopItemIndex, name, sizeof(name) );
+    char buffer[3][16];
+    ExplodeString(name, "+", buffer, 3, 16);
+    int ownpt = PT_Get(client);
+    return (StringToInt(buffer[1]) + (RoundToCeil(StringToFloat(buffer[2]) * (ownpt < 0 ? -ownpt : ownpt) )) );
+  }
+
+  return SubShop_ItemWeaponPrice.Get(ShopItemIndex);
+}
 void DisplayShopMenu(int client)
 {
 	Menu shop = CreateMenu(Menu_Shop);
@@ -1490,9 +1721,9 @@ void DisplayShopMenu_Sub(int client, int type)
 		targetItemIndex = g_iShopArrayIndexOffest[type] + i;
 		SubShop_ItemDisplayName.GetString(targetItemIndex, buffer, sizeof(buffer) );
 
-		iCount = GetClientShopItemCount(client, targetItemIndex);
+		iCount = GetClientShopItemInventory(client, targetItemIndex);
 		IntToString(iCount, sCount, sizeof(sCount) );
-		iPrice = SubShop_ItemWeaponPrice.Get(targetItemIndex);
+		iPrice = Get_SubShopItemWeaponPrice(targetItemIndex, client);
 		IntToString(iPrice, sPrice, sizeof(sPrice) );
 
 		if(iCount == -2)
@@ -1533,22 +1764,102 @@ public int Menu_Shop_Sub(Menu menu, MenuAction action, int param1, int param2)
 	return 0;
 }
 
+bool SetItems_AllowSpawnTank(int client)
+{
+/*
+  for(int i=1; i<=MaxClients; i++)
+  {
+    if(!IsClientInGame(i) )
+      continue;
+    if(GetClientTeam(i) == 3)
+    {
+      if(GetEntProp(i, Prop_Send, "m_zombieClass") == 8)
+      {
+        PrintToChat(client, "\x04 游戏中不能有存活的Tank！");
+        return false;
+      }
+    }
+  }
+*/
+  if(L4D2_IsTankInPlay() || g_iTank_player != -1)
+  {
+        PrintToChat(client, "\x04 游戏中不能有存活的Tank！");
+        return false;
+  }
+  if(GetPlayerNum() < 8)
+  {
+    PrintToChat(client, "\x04 游戏中的幸存者数量必须大于7个.");
+    return false;
+  }
+  return true;
+}
 // ShopItemIndex是一个绝对索引
 // 现在我不明白当时出于什么考虑 设置&&命名 了RandomPrice 参数...
 bool SetItems(int client, const char[] weapon, int ShopItemIndex=-1, int RandomPrice = -1)
 {
 	bool value;
 
-	if(strncmp(weapon, "other", 5, false) == 0)
+	if(strncmp(weapon, "other_spawntk", 13, false) == 0)
 	{
-#if DEBUG
-		PrintToChatAll("是一个特殊效果：%s", weapon);
-#endif
-		value = false;		
+    if(SetItems_AllowSpawnTank(client) )
+    {
+      int flags = GetCommandFlags("z_spawn_old");
+      SetCommandFlags("z_spawn_old", flags & ~FCVAR_CHEAT);
+      FakeClientCommand(client, "z_spawn_old tank auto");
+      SetCommandFlags("z_spawn_old", flags);      
+      g_bSpawnPlayerTank = true;
+      for(int i=1; i<=MaxClients; i++)
+      {
+        if(!IsClientInGame(i) )
+          continue;
+        if(GetClientTeam(i) == 3)
+        {
+          if(GetEntProp(i, Prop_Send, "m_zombieClass") == 8)
+          {
+            g_iTank_player = client;
+            ExecuteRootCommand(client, "sm_ji");
+            L4D_ReplaceTank(i, client);
+
+            char sDiff[16];
+            ConVar hDiff = FindConVar("z_difficulty");
+            hDiff.GetString(sDiff, sizeof(sDiff) );
+            if(strncmp(sDiff, "H", 1, false) == 0 || strncmp(sDiff, "I", 1, false) == 0 )
+            {
+              int hp = GetEntProp(client, Prop_Send, "m_iHealth") / 2;
+              SetEntProp(client, Prop_Send, "m_iHealth", hp);
+            }
+
+            PT_Subtract(client, Get_SubShopItemWeaponPrice(ShopItemIndex, client) );
+            CreateTimer(0.5, tPlayerTankSpawned_SendMSG, client, TIMER_REPEAT);
+            return true;
+          }
+        }
+      }
+      PrintToChat(client, "\x04 没有找到生成的Tank.");
+      return false;
+    }
+    else
+    {
+      PrintToChat(client, "\x04 不满足生成Tank的条件.");
+      return false;
+    }
+	}
+
+	if(strncmp(weapon, "other", 5, false) == 0)
+		value = false;
+
+	char buffer[2][16];
+
+	if(strncmp(weapon, "cmd", 3, false) == 0)
+	{
+		ExplodeString(weapon, "+", buffer, 2, 16);
+    ExecuteRootCommand(client, buffer[1]);
+		PrintToChat(client, "\x03  烟花正在你瞄准的位置发射！！！");
+		PrintToChatAll( "\x05%N\x01 发射了一枚烟花！", client);		
+		return true;
 	}
 
 	bool IsMelee;
-	char buffer[2][16];
         int entity_weapon;
 	
 	if(strncmp("weapon_melee", weapon, 12, false) == 0)
@@ -1572,7 +1883,7 @@ bool SetItems(int client, const char[] weapon, int ShopItemIndex=-1, int RandomP
 	{
 		if(RandomPrice != -1)
 			PT_Subtract(client, RandomPrice);
-		else	PT_Subtract(client, SubShop_ItemWeaponPrice.Get(ShopItemIndex) );
+		else	PT_Subtract(client, Get_SubShopItemWeaponPrice(ShopItemIndex, client) );
 		value =  true;
 	}
 
@@ -1590,6 +1901,31 @@ bool SetItems(int client, const char[] weapon, int ShopItemIndex=-1, int RandomP
 			Client_SetWeaponPlayerAmmoEx(client, entity_weapon, GetEntProp(entity_weapon, Prop_Send, "m_iClip1") * mult);
 	}
 	return value;
+}
+int g_iPlayerTankSpawned_SendMSG_Count;
+Action tPlayerTankSpawned_SendMSG(Handle Tiemr, any client)
+{
+  if(g_iPlayerTankSpawned_SendMSG_Count == 6)
+  {
+    g_iPlayerTankSpawned_SendMSG_Count=0;
+    return Plugin_Stop;
+  }
+  if(IsClientInGame(client) )
+  {
+    if(GetClientTeam(client) == 3)
+    {
+      EmitSoundToAll(PlayerTankSpawned_Hint, SOUND_FROM_PLAYER);      
+      char sDiff[16];
+      ConVar hDiff = FindConVar("z_difficulty");
+      hDiff.GetString(sDiff, sizeof(sDiff) );
+      if(strncmp(sDiff, "H", 1, false) == 0 || strncmp(sDiff, "I", 1, false) == 0 )
+        CPrintToChatAll("{red}[TANK] \x03%N\x05已经控制了一只{red}50%%\x05血量的{red}Tank\x05！", client);
+      else  CPrintToChatAll("{red}[TANK] \x03%N\x05已经控制了一只{red}100%%\x05血量的{red}Tank\x05！", client);
+
+      g_iPlayerTankSpawned_SendMSG_Count++;
+    }
+  }
+  return Plugin_Continue;
 }
 
 void PT_BuyItem(int client, int SubShopItemIndex)
@@ -1612,7 +1948,7 @@ void PT_BuyItem(int client, int SubShopItemIndex)
 
 	int own_pt = PT_Get(client);
 	int targetIteamIndex = g_iShopArrayIndexOffest[g_iClientViewShopType[client]] + SubShopItemIndex;
-	int item_price = SubShop_ItemWeaponPrice.Get(targetIteamIndex);
+	int item_price = Get_SubShopItemWeaponPrice(targetIteamIndex, client);
 
 	if(item_price == -1)
 	{
@@ -1622,7 +1958,7 @@ void PT_BuyItem(int client, int SubShopItemIndex)
 #if DEBUG
 	PrintToChatAll("需要的点数:%d", item_price);
 #endif
-	if(GetClientShopItemCount(client, targetIteamIndex) == 0 )
+	if(GetClientShopItemInventory(client, targetIteamIndex) == 0 )
 	{
 		CPrintToChat(client, "{blue}[商店]\x01 目标物品在当前地图的剩余可购买次数已用尽!", own_pt);
 		return;
@@ -1649,7 +1985,7 @@ void PT_BuyItem(int client, int SubShopItemIndex)
 
 		// 也许需要进行额外的操作避免短暂的帧速率下降和一些误操作可能引起的服务器挂起
 		// 也许...??
-		while(SubShop_ItemWeaponPrice.Get(targetIteamIndex) == -1)
+		while(Get_SubShopItemWeaponPrice(targetIteamIndex, client) == -1)
 			targetIteamIndex = GetRandomInt(MinItemIndex, MaxItemIndex);
 
 		SubShop_ItemWeaponName.GetString(targetIteamIndex, sWeapon, sizeof(sWeapon) );
@@ -1682,11 +2018,11 @@ void PT_BuyItem(int client, int SubShopItemIndex)
 
 		if(IsRealismMode)	CPrintToChat(client, "{blue} \x01写实模式的点数花费：\x05%.2fx", REALISM_MODE_SPENT_MULT);
 
-		int count = GetClientShopItemCount(client, targetIteamIndex);
+		int count = GetClientShopItemInventory(client, targetIteamIndex);
 		if(count != -2)			
-			SetClientShopItemCount(client, targetIteamIndex, count - 1 );
-
+			SetClientShopItemInventory(client, targetIteamIndex, count - 1 );
 	}
+  else  CPrintToChat(client, "{blue}[商店]\x01 设置物品失败，所有花费已返还.");
 }
 
 int PT_Add(int client, int pt)
@@ -1769,7 +2105,7 @@ void Event_Tank_Spawn(Event event, const char[] name, bool dontBroadcast)
 	// g_iTankAlive数组考虑了多Tank场景，但这是早期版本某个需求的要求，现在？也许有更好的方法替代...
 	if(g_bTankFind[tank])	g_bTankFind[tank] = false;
 /*
-	for(int i=1; i<MaxClients; i++)
+	for(int i=1; i<=MaxClients; i++)
 	{
 		// 如果有那么多Tank非正常死亡？我认为暂时不需要考虑这种情况...
 		if(g_iTankAlive[i] == 0)
@@ -1780,17 +2116,24 @@ void Event_Tank_Spawn(Event event, const char[] name, bool dontBroadcast)
 		g_hTankAliveTimer = CreateTimer(TANK_ALIVE_TIMER_INTERVAL, tTankAlive, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
 
-void Event_Tank_Kiiled(Event event, const char[] name, bool dontBroadcast)
+void Event_Tank_Killed(Event event, const char[] name, bool dontBroadcast)
 {
+  // 创建sm_ji命令的插件似乎会杀死tank然后重新生成
+  if(g_bSpawnPlayerTank)
+  {
+    g_bSpawnPlayerTank = false;
+    return;
+  }
+
 	int killer = GetClientOfUserId(event.GetInt("attacker") );
 	bool solo = event.GetBool("solo");
 	bool melee = event.GetBool("melee_only");
 #if DEBUG
-	PrintToChatAll("Event_Tank_Kiiled: %N#%d", killer, killer);
+	PrintToChatAll("Event_Tank_Killed: %N#%d", killer, killer);
 #endif
 	if(solo && melee && IsClientInGame(killer) )
 	{
-		ServerCommand("[%s]: %N Event_Tank_Kiiled: solo AND melee", PLUGIN_NAME, killer);
+		ServerCommand("[%s]: %N Event_Tank_Killed: solo AND melee", PLUGIN_NAME, killer);
 		PT_Add(killer, TANK_SOLO_MELEE_REWARD);
 		CPrintToChatAll("\x03%N\x01仅使用近战武器杀死了一只Tank, 且没有其他人的伤害贡献！");
 		CPrintToChatAll("\x03%N\x01 获得了{blue} %d pt\x01的奖励！", TANK_SOLO_MELEE_REWARD);
@@ -1807,7 +2150,7 @@ void Event_Tank_Kiiled(Event event, const char[] name, bool dontBroadcast)
 		value = value + TANK_ONLY_MELEE_REWARD;
 	}
 
-	for(int i=1; i<MaxClients; i++)
+	for(int i=1; i<=MaxClients; i++)
 	{
 		if(!IsClientInGame(i) )
 			continue;
@@ -1826,7 +2169,7 @@ Action tTankAlive(Handle Timer)
 	bool alive;
 	bool find;
 
-	for(int i=1; i<MaxClients; i++)
+	for(int i=1; i<=MaxClients; i++)
 	{
 		if(!IsClientInGame(i) )
 			continue;
@@ -1871,7 +2214,7 @@ Action tTankAlive(Handle Timer)
 			...
 			......
 */
-			for(int i=1; i<MaxClients; i++)
+			for(int i=1; i<=MaxClients; i++)
 			{
 				if(!IsClientInGame(i) )
 					continue;
@@ -1997,4 +2340,35 @@ stock int ML4D_GetPlayerTempHealth(int client)
 
         int tempHealth = RoundToCeil(GetEntPropFloat(client, Prop_Send, "m_healthBuffer") - ((GetGameTime() - GetEntPropFloat(client, Prop_Send, "m_healthBufferTime")) * painPillsDecayCvar.FloatValue)) - 1;
         return tempHealth < 0 ? 0 : tempHealth;
+}
+
+stock void ExecuteRootCommand(int client, const char[] cmd)
+{
+		int flag = GetUserFlagBits(client);
+		bool hasFlag;
+		if(flag == 0 || !(flag & ADMFLAG_ROOT) )
+		{
+			hasFlag = true;
+			SetUserFlagBits(client, flag | ADMFLAG_ROOT);
+		}
+		FakeClientCommand(client, cmd);
+
+		if(hasFlag)
+			SetUserFlagBits(client, flag & ~ADMFLAG_ROOT);
+}
+
+stock int GetPlayerNum()
+{
+  int count;
+  for(int i =1; i<=MaxClients; i++)
+  {
+    //https://forums.alliedmods.net/archive/index.php/t-132438.html
+    if(IsClientConnected(i) )
+    {
+      if(IsClientInGame(i) )
+          if(GetClientTeam(i) == 2)
+            count++;
+    }
+  }
+  return count;
 }
