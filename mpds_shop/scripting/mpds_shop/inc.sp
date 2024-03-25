@@ -1,4 +1,4 @@
-#include "mpds_shop.inc"
+#include <mpds_shop>
 
 int Native_MPDS_Shop_PT_Change(Handle plugin, int numParams)
 {

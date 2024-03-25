@@ -78,7 +78,7 @@ int ML4D_GetPlayerTempHealth(int client)
         int tempHealth = RoundToCeil(GetEntPropFloat(client, Prop_Send, "m_healthBuffer") - ((GetGameTime() - GetEntPropFloat(client, Prop_Send, "m_healthBufferTime")) * painPillsDecayCvar.FloatValue)) - 1;
         return tempHealth < 0 ? 0 : tempHealth;
 }
-
+// ****************************************************************
 void ExecuteRootCommand(int client, const char[] cmd)
 {
 		int flag = GetUserFlagBits(client);
@@ -168,4 +168,175 @@ void fuc_Precache()
     for( i = 0; i <= 5; i++ ) PrecacheSound(g_sSoundsLaunch[i], true);
     PrecacheModel(MODEL_CRATE, true);	
   }
+}
+// https://forums.alliedmods.net/showthread.php?p=1441088
+void PrecacheParticle(const char[] sEffectName)
+{
+        static int table = INVALID_STRING_TABLE;
+        if( table == INVALID_STRING_TABLE )
+        {
+                table = FindStringTable("ParticleEffectNames");
+        }
+
+        if( FindStringIndex(table, sEffectName) == INVALID_STRING_INDEX )
+        {
+                bool save = LockStringTables(false);
+                AddToStringTable(table, sEffectName);
+                LockStringTables(save);
+        }
+}
+// ****************************************************************
+int PT_Add(int client, int pt)
+{
+  if(g_bCookieCached[client])  
+  {
+    g_iPlayerPT[client] = g_iPlayerPT[client] + pt;
+    PT_Update(client, true);
+    return 0;
+  }
+
+  return -1;
+}
+
+int PT_Subtract(int client, int pt)
+{
+  if(g_bCookieCached[client])  
+  {
+    g_iPlayerPT[client] = g_iPlayerPT[client] - pt;
+    PT_Update(client, true);
+    return 0;
+  }
+
+  return -1;
+}
+
+int PT_Get(int client, char[] sPt)
+{
+  if(g_bCookieCached[client])  
+  {
+    IntToString(PT_Update(client, false), sPt, 16 );    
+    return 1;
+  }
+  Format(sPt, 16, "COOKIENOTCACHED");
+  return 0;
+}
+
+
+int PT_Update(int client, bool write)
+{
+  char sPT[16];
+  chPlayerPT = FindClientCookie("mpds_pt_re3");
+  GetClientCookie(client, chPlayerPT, sPT, sizeof(sPT) );
+
+  if(!write)
+  {
+    g_iPlayerPT[client] = StringToInt(sPT);
+  }
+  else
+  {
+    IntToString(g_iPlayerPT[client], sPT, sizeof(sPT) );
+    SetClientCookie(client, chPlayerPT, sPT);
+  }
+
+  return g_iPlayerPT[client];
+}
+// ****************************************************************
+void ResetClientCount_LDW()
+{
+  for(int i=1; i<= MaxClients; i++)
+    g_iClientCount_LDW[i] = -1;
+}
+// 不在章节失败时刷新
+void ResetClientShopItemInventory()
+{
+  PrintToServer("\n[商店] 重置客户端物品可购买物品的剩余数量\n");
+
+  for(int client=0; client<SingleMapMaxPlayers; client++)
+    for(int idx=0; idx< SHOP_ITEM_NUM+1; idx++)
+      g_iClientShopItemRemainingQuantity[client][idx] = -1;
+}
+
+void SetClientShopItemInventory(client, item, value)
+{
+  int id = GetSteamAccountID(client);
+  if(id != 0)
+  {
+    int idx = ShopItemInventory_GetClientIndexOfSteamID(id);
+    if(idx != -1)
+      g_iClientShopItemRemainingQuantity[idx][item] = value;
+    else  PrintToChatAll("ERROR: SetClientShopItemInventory(); %N# target idx == 0", client);
+  }
+  else  PrintToChatAll("ERROR: SetClientShopItemInventory(); %N# id == 0", client);
+}
+
+int GetClientShopItemInventory(client, item)
+{
+  int id = GetSteamAccountID(client);
+  if(id != 0)
+  {
+    int idx = ShopItemInventory_GetClientIndexOfSteamID(id);
+    if(idx != -1)
+    {
+      if(g_iClientShopItemRemainingQuantity[idx][item] == -1 )
+        return SubShop_ItemInventory.Get(item);
+  
+      return  g_iClientShopItemRemainingQuantity[idx][item];
+    }
+    else  PrintToChatAll("ERROR: GetClientShopItemInventory(); %N# target idx == 0", client);
+  }
+  else  PrintToChatAll("ERROR: GetClientShopItemInventory(); %N# id == 0", client);
+
+  return 0;
+}
+
+int ShopItemInventory_GetClientIndexOfSteamID(int id)
+{
+  for(int i=0; i<SingleMapMaxPlayers; i++)
+  {
+    if(g_iClientShopItemRemainingQuantity[i][SHOP_ITEM_NUM] == id)
+      return i;
+  }
+
+  return -1;
+}
+
+int Get_SubShopItemWeaponPrice(int ShopItemIndex, int client)
+{
+  static char sPrice[32];
+  static int iPrice;
+  SubShop_ItemPrice.GetString(ShopItemIndex, sPrice, sizeof(sPrice) );
+
+  if(strncmp(sPrice, "f", 1, false) == 0)
+    iPrice = 0;
+  else if(strncmp(sPrice, "l", 1, false) == 0)
+    iPrice = -1;
+  else if(StrContains(sPrice, "+", false) != -1)
+  { 
+    static char buffer[2][16];
+    ExplodeString(sPrice, "+", buffer, 2, 16);
+    static int ownpt;
+    static char sPt[16];
+    if(PT_Get(client, sPt) )
+      ownpt = StringToInt(sPt);
+    // 如果是实时的计算价格，那么就应该避免客户端在Cookie未加载的情况下打开商店.
+    else  
+      ownpt = 100000;
+
+    iPrice = StringToInt(buffer[0]) + (RoundToCeil(StringToFloat(buffer[1]) * (ownpt < 0 ? -ownpt : ownpt )) );
+  }
+  else 
+    iPrice = StringToInt(sPrice);
+
+  return iPrice;
+}
+// 获取特定类型商店拥有的物品总数
+int GetSubShopItemNum(int type)
+{
+  if( (type + 1) <=  (MAXSHOPTYPE - 1) )
+    return (g_iShopArrayIndexOffest[type+1] - g_iShopArrayIndexOffest[type] );
+
+  if( type == 0)
+    return g_iShopArrayIndexOffest[type+1];
+
+  return (SubShop_ItemDisplayName.Length - g_iShopArrayIndexOffest[type]);
 }

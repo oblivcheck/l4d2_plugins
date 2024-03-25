@@ -6,11 +6,18 @@
 #include <left4dhooks>
 
 #include "mpds_shop/define.sp"
-#include "mpds_shop/fuc.sp"
 #include "mpds_shop/options.sp"
 #include "mpds_shop/items.sp"
+#include "mpds_shop/fuc.sp"
 #include "mpds_shop/inc.sp"
+#include "mpds_shop/special_items.sp"
 ```
+## Developers
+
+[mpds.inc](https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop/scripting/mpds_shop/include/mpds.inc)
+
+[inc.sp](https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop/scripting/mpds_shop/inc.sp)
+
 **Installed plugin:**
 
 [l4d2_fireworks](https://forums.alliedmods.net/showthread.php?p=1441088)
@@ -24,6 +31,8 @@
 
 ## Changes Log
 ~~~
+2024-03-25 (REV 1.1.1)
+  - Organize the code.
 
 2024-03-23 (REV 1.1.0)
   - Organize the code.
@@ -90,6 +99,7 @@
 
 ## Settings
 **Cvars**
+
 Noting.
 
 **Client command**
@@ -117,4 +127,7 @@ sm_hreset
 [options.sp](https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop/scripting/mpds_shop/options.sp)
 
 **Shop Items**
+
 [items.sp](https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop/scripting/mpds_shop/items.sp)
+
+[special_items.sp](https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop/scripting/mpds_shop/special_items.sp)

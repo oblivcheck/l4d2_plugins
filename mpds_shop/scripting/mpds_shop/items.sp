@@ -1,5 +1,6 @@
 // 商店物品的最大数量目前是硬编码的，需要调整下面的定义
-// "mpds_shopdefine.sp" #define SHOP_ITEM_NUM 64
+// "mpds_shopdefine.sp": #define SHOP_ITEM_NUM 64
+// 特殊商品的实现方式位于 "mpds_shop/special_items.sp"
 
 // MethodMap... 也许以后
 ArrayList SubShop_ItemDisplayName;
