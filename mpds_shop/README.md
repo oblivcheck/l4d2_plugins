@@ -14,7 +14,7 @@
 ```
 ## Developers
 
-[mpds.inc](https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop/scripting/mpds_shop/include/mpds.inc)
+[mpds.inc](https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop/scripting/mpds_shop/include/mpds_shop.inc)
 
 [inc.sp](https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop/scripting/mpds_shop/inc.sp)
 
