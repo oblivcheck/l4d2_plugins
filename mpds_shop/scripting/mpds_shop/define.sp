@@ -73,7 +73,7 @@ int g_iPlayerPT[MAXPLAYERS+1];
 bool  g_bCookieCached[MAXPLAYERS+1];
 
 // 硬编码数组第二维的大小，这应该大于商店中的物品总数
-#define SHOP_ITEM_NUM   64
+#define SHOP_ITEM_NUM   128
 // 为什么不使用ADT，因为早期版本中出现了问题，而我不想继续检查，故而直接硬编码大小
 // 末尾索引(SHOP_ITEM_NUM+1)记录客户端的STEAMID
 int g_iClientShopItemRemainingQuantity[128][SHOP_ITEM_NUM+1];
@@ -108,9 +108,6 @@ char g_sShopType[7][]={
 	"其它物品",
 	"特殊效果"
 };
-#define	MAXSHOPTYPE	7
-// 特定类别商店的第一个项目的绝对索引
-int g_iShopArrayIndexOffest[MAXSHOPTYPE]={0, 7, 19, 23, 37, 42, 53};
 int g_iClientViewShopType[MAXPLAYERS+1];
 
 int g_iPlayerTankSpawned_SendMSG_Count;

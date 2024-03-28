@@ -1,6 +1,8 @@
 // 商店物品的最大数量目前是硬编码的，需要调整下面的定义
 // "mpds_shopdefine.sp": #define SHOP_ITEM_NUM 64
-// 特殊商品的实现方式位于 "mpds_shop/special_items.sp"
+#define	MAXSHOPTYPE	7
+// 特定类别商店的第一个项目的绝对索引
+int g_iShopArrayIndexOffest[MAXSHOPTYPE]={0, -1, -1, ...};
 
 // MethodMap... 也许以后
 ArrayList SubShop_ItemDisplayName;
@@ -13,7 +15,7 @@ void CacheShopItem()
 {
 	// 对于随机的物品，只关注显示名称与价格
 	// 后三个值重置的默认值为-1
-	// 始终确保每一个项目的显示名称不为空，它被用于计算项目的总数
+	// 确保始终Push每一个项目的显示名称，它被用于计算项目的总数
 	SubShop_ItemDisplayName = CreateArray(32);
 	SubShop_ItemName = CreateArray(32);
 	// free = 免费的物品
@@ -70,108 +72,127 @@ void CacheShopItem()
 	SubShop_ItemInventory.Push(4);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
+  SubShop_ItemDisplayName.PushString("");
+	SubShop_ItemName.PushString("_MSS_ShopSplit");	
+	SubShop_ItemPrice.PushString("");
+	SubShop_ItemInventory.Push(-1);
+	SubShop_ItemWeaponAmmoMult.Push(-1);
+
 	// 二级商店
 	SubShop_ItemDisplayName.PushString("随机的物品");
 	SubShop_ItemName.PushString("");	
-	SubShop_ItemPrice.PushString("20+0.05");
+	SubShop_ItemPrice.PushString("20+0.2");
 	SubShop_ItemInventory.Push(-2);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 	SubShop_ItemDisplayName.PushString("M16步枪");
 	SubShop_ItemName.PushString("weapon_rifle");
-	SubShop_ItemPrice.PushString("12+0.01");
+	SubShop_ItemPrice.PushString("12+0.1");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(18);
 
 	SubShop_ItemDisplayName.PushString("Ak47步枪");
 	SubShop_ItemName.PushString("weapon_rifle_ak47");	
-	SubShop_ItemPrice.PushString("16+0.01");
+	SubShop_ItemPrice.PushString("16+0.1");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(18);
 
 	SubShop_ItemDisplayName.PushString("军用步枪");
 	SubShop_ItemName.PushString("weapon_rifle_desert");	
-	SubShop_ItemPrice.PushString("14+0.01");
+	SubShop_ItemPrice.PushString("14+0.1");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(14);
 
 	SubShop_ItemDisplayName.PushString("Sg552步枪");
 	SubShop_ItemName.PushString("weapon_rifle_sg552");	
-	SubShop_ItemPrice.PushString("12+0.01");
+	SubShop_ItemPrice.PushString("12+0.1");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(18);
 
 	SubShop_ItemDisplayName.PushString("自动霰弹枪");
 	SubShop_ItemName.PushString("weapon_autoshotgun");	
-	SubShop_ItemPrice.PushString("16+0.01");
+	SubShop_ItemPrice.PushString("16+0.1");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(14);
 
 	SubShop_ItemDisplayName.PushString("战斗霰弹枪");
 	SubShop_ItemName.PushString("weapon_shotgun_spas");	
-	SubShop_ItemPrice.PushString("16+0.01");
+	SubShop_ItemPrice.PushString("16+0.1");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(14);
 
 	SubShop_ItemDisplayName.PushString("狩猎步枪");
 	SubShop_ItemName.PushString("weapon_hunting_rifle");	
-	SubShop_ItemPrice.PushString("5+0.01");
+	SubShop_ItemPrice.PushString("5+0.1");
 	SubShop_ItemInventory.Push(2);
 	SubShop_ItemWeaponAmmoMult.Push(18);
 
 	SubShop_ItemDisplayName.PushString("军用狙击步枪");
 	SubShop_ItemName.PushString("weapon_sniper_military");	
-	SubShop_ItemPrice.PushString("14+0.01");
+	SubShop_ItemPrice.PushString("14+0.1");
 	SubShop_ItemInventory.Push(2);
 	SubShop_ItemWeaponAmmoMult.Push(18);
 
 	SubShop_ItemDisplayName.PushString("侦察狙击步枪");
 	SubShop_ItemName.PushString("weapon_sniper_scout");	
-	SubShop_ItemPrice.PushString("2+0.01");
+	SubShop_ItemPrice.PushString("2+0.1");
 	SubShop_ItemInventory.Push(2);
 	SubShop_ItemWeaponAmmoMult.Push(27);
 
 	SubShop_ItemDisplayName.PushString("Awp狙击步枪");
 	SubShop_ItemName.PushString("weapon_sniper_awp");	
-	SubShop_ItemPrice.PushString("5+0.01");
+	SubShop_ItemPrice.PushString("5+0.1");
 	SubShop_ItemInventory.Push(2);
 	SubShop_ItemWeaponAmmoMult.Push(18);
 
 	SubShop_ItemDisplayName.PushString("Magnum手枪");
 	SubShop_ItemName.PushString("weapon_pistol_magnum");	
-	SubShop_ItemPrice.PushString("10+0.01");
+	SubShop_ItemPrice.PushString("10+0.1");
 	SubShop_ItemInventory.Push(2);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
+
+  SubShop_ItemDisplayName.PushString("");
+	SubShop_ItemName.PushString("_MSS_ShopSplit");	
+	SubShop_ItemPrice.PushString("");
+	SubShop_ItemInventory.Push(-1);
+	SubShop_ItemWeaponAmmoMult.Push(-1);
+
 
 	// 三级商店
 	SubShop_ItemDisplayName.PushString("随机的物品");
 	SubShop_ItemName.PushString("");	
-	SubShop_ItemPrice.PushString("80+0.05");
+	SubShop_ItemPrice.PushString("80+0.25");
 	SubShop_ItemInventory.Push(-2);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 	SubShop_ItemDisplayName.PushString("M60轻机枪");
 	SubShop_ItemName.PushString("weapon_rifle_m60");	
-	SubShop_ItemPrice.PushString("20+0.05");
+	SubShop_ItemPrice.PushString("20+0.2");
 	SubShop_ItemInventory.Push(2);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 	SubShop_ItemDisplayName.PushString("榴弹发射器");
 	SubShop_ItemName.PushString("weapon_grenade_launcher");	
-	SubShop_ItemPrice.PushString("20+0.05");
+	SubShop_ItemPrice.PushString("20+0.2");
 	SubShop_ItemInventory.Push(2);
 	SubShop_ItemWeaponAmmoMult.Push(12);
 
 	SubShop_ItemDisplayName.PushString("电锯");
 	SubShop_ItemName.PushString("weapon_chainsaw");	
-	SubShop_ItemPrice.PushString("30+0.06");
+	SubShop_ItemPrice.PushString("30+0.2");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
+
+  SubShop_ItemDisplayName.PushString("");
+	SubShop_ItemName.PushString("_MSS_ShopSplit");	
+	SubShop_ItemPrice.PushString("");
+	SubShop_ItemInventory.Push(-1);
+	SubShop_ItemWeaponAmmoMult.Push(-1);
 
 	// 近战武器
 	SubShop_ItemDisplayName.PushString("随机的物品");
 	SubShop_ItemName.PushString("");
-	SubShop_ItemPrice.PushString("40+0.02");
+	SubShop_ItemPrice.PushString("40+0.2");
 	SubShop_ItemInventory.Push(2);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
@@ -184,87 +205,93 @@ void CacheShopItem()
 
 	SubShop_ItemDisplayName.PushString("消防斧");
 	SubShop_ItemName.PushString("weapon_melee+fireaxe");	
-	SubShop_ItemPrice.PushString("20+0.02");
+	SubShop_ItemPrice.PushString("20+0.15");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 
 	SubShop_ItemDisplayName.PushString("平底锅");
 	SubShop_ItemName.PushString("weapon_melee+frying_pan");	
-	SubShop_ItemPrice.PushString("10+0.01");
+	SubShop_ItemPrice.PushString("10+0.1");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 
 	SubShop_ItemDisplayName.PushString("砍刀");
 	SubShop_ItemName.PushString("weapon_melee+machete");	
-	SubShop_ItemPrice.PushString("20+0.02");
+	SubShop_ItemPrice.PushString("20+0.15");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 
 	SubShop_ItemDisplayName.PushString("棒球棍");
 	SubShop_ItemName.PushString("weapon_melee+baseball_bat");	
-	SubShop_ItemPrice.PushString("10+0.02");
+	SubShop_ItemPrice.PushString("10+0.1");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 
 	SubShop_ItemDisplayName.PushString("撬棍");
 	SubShop_ItemName.PushString("weapon_melee+crowbar");	
-	SubShop_ItemPrice.PushString("10+0.02");
+	SubShop_ItemPrice.PushString("10+0.1");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 
 	SubShop_ItemDisplayName.PushString("板球棒");
 	SubShop_ItemName.PushString("weapon_melee+cricket_bat");	
-	SubShop_ItemPrice.PushString("10+0.01");
+	SubShop_ItemPrice.PushString("10+0.1");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 
 	SubShop_ItemDisplayName.PushString("警棍");
 	SubShop_ItemName.PushString("weapon_melee+tonfa");	
-	SubShop_ItemPrice.PushString("15+0.015");
+	SubShop_ItemPrice.PushString("15+0.12");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 
 	SubShop_ItemDisplayName.PushString("武士刀");
 	SubShop_ItemName.PushString("weapon_melee+katana");	
-	SubShop_ItemPrice.PushString("15+0.015");
+	SubShop_ItemPrice.PushString("15+0.12");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 	SubShop_ItemDisplayName.PushString("电吉他");
 	SubShop_ItemName.PushString("weapon_melee+electric_guitar");	
-	SubShop_ItemPrice.PushString("15+0.015");
+	SubShop_ItemPrice.PushString("15+0.12");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 	SubShop_ItemDisplayName.PushString("小刀");
 	SubShop_ItemName.PushString("weapon_melee+knife");	
-	SubShop_ItemPrice.PushString("15+0.015");
+	SubShop_ItemPrice.PushString("15+0.12");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 	SubShop_ItemDisplayName.PushString("高尔夫球杆");
 	SubShop_ItemName.PushString("weapon_melee+golfclub");	
-	SubShop_ItemPrice.PushString("10+0.01");
+	SubShop_ItemPrice.PushString("10+0.1");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
 	SubShop_ItemDisplayName.PushString("铁铲");
 	SubShop_ItemName.PushString("weapon_melee+shovel");	
-	SubShop_ItemPrice.PushString("15+0.015");
+	SubShop_ItemPrice.PushString("15+0.1");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
-	// 医疗物品
+  SubShop_ItemDisplayName.PushString("");
+	SubShop_ItemName.PushString("_MSS_ShopSplit");	
+	SubShop_ItemPrice.PushString("");
+	SubShop_ItemInventory.Push(-1);
+	SubShop_ItemWeaponAmmoMult.Push(-1);
+
+  // 医疗物品
 	SubShop_ItemDisplayName.PushString("随机的物品");
 	SubShop_ItemName.PushString("");	
-	SubShop_ItemPrice.PushString("20+0.05");
+	SubShop_ItemPrice.PushString("20+0.2");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
@@ -301,7 +328,13 @@ void CacheShopItem()
 	SubShop_ItemInventory.Push(2);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
 
-	// 其他物品
+  SubShop_ItemDisplayName.PushString("");
+	SubShop_ItemName.PushString("_MSS_ShopSplit");	
+	SubShop_ItemPrice.PushString("");
+	SubShop_ItemInventory.Push(-1);
+	SubShop_ItemWeaponAmmoMult.Push(-1);
+
+  // 其他物品
 	SubShop_ItemDisplayName.PushString("随机的物品");
 	SubShop_ItemName.PushString("");	
 	SubShop_ItemPrice.PushString("10+0.1");
@@ -367,6 +400,12 @@ void CacheShopItem()
 	SubShop_ItemPrice.PushString("lock");
 	SubShop_ItemInventory.Push(1);
 	SubShop_ItemWeaponAmmoMult.Push(-2);
+
+  SubShop_ItemDisplayName.PushString("");
+	SubShop_ItemName.PushString("_MSS_ShopSplit");	
+	SubShop_ItemPrice.PushString("");
+	SubShop_ItemInventory.Push(-1);
+	SubShop_ItemWeaponAmmoMult.Push(-1);
 
 	// 特殊效果
 	SubShop_ItemDisplayName.PushString("--占位符--");

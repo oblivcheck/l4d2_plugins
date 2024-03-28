@@ -329,14 +329,132 @@ int Get_SubShopItemWeaponPrice(int ShopItemIndex, int client)
 
   return iPrice;
 }
-// 获取特定类型商店拥有的物品总数
+
+void SubShop_FindFirstValidItem()
+{
+  char buffer[32];
+  for(int i=0; i<SubShop_ItemDisplayName.Length;i++)
+  {
+    SubShop_ItemName.GetString(i, buffer, sizeof(buffer) );
+    if(strcmp(buffer, "_MSS_ShopSplit") == 0)
+    {
+      for(int p=1;p<MAXSHOPTYPE;p++)
+      {
+        if(g_iShopArrayIndexOffest[p] == -1)
+        {
+          g_iShopArrayIndexOffest[p] = (i+1);
+          break;
+        }
+      }
+    }
+  }
+  for(int p=0;p<7;p++)
+    PrintToServer("%d# %d", p, g_iShopArrayIndexOffest[p]);
+}
+// 寻找特定子类商店有效物品的总数量（包括随机/锁定等）
 int GetSubShopItemNum(int type)
 {
+  // 其它的子类商店
   if( (type + 1) <=  (MAXSHOPTYPE - 1) )
-    return (g_iShopArrayIndexOffest[type+1] - g_iShopArrayIndexOffest[type] );
-
+    return (g_iShopArrayIndexOffest[type+1] - g_iShopArrayIndexOffest[type] - 1);
+  // 顺序第一个子类商店
   if( type == 0)
-    return g_iShopArrayIndexOffest[type+1];
+    return (g_iShopArrayIndexOffest[type+1] - 1);
 
+  // 顺序最后的一个子类商店
   return (SubShop_ItemDisplayName.Length - g_iShopArrayIndexOffest[type]);
 }
+// ****************************************************************
+void RefThirdStrike(int client)
+{
+  SetEntProp(client, Prop_Send, "m_currentReviveCount", 0);
+  SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
+  // 停止播放声音的方法来自 l4d_heartbeat.sp
+  SetEntProp(client, Prop_Send, "m_isGoingToDie", 0);
+  
+  // Heartbeat sound, stop dupe sound bug, only way.
+  RequestFrame(OnFrameSound, client);
+  ResetSound(client);
+  ResetSound(client);
+  ResetSound(client);
+  ResetSound(client);
+  ResetSoundObs(client);
+}
+void ResetSoundObs(int client)
+{
+  for( int i = 1; i <= MaxClients; i++ )
+  {
+    if( IsClientInGame(i) && !IsPlayerAlive(i) && GetEntPropEnt(i, Prop_Send, "m_hObserverTarget") == client )
+    {
+      RequestFrame(OnFrameSound, GetClientUserId(i));
+      ResetSound(i);
+      ResetSound(i);
+      ResetSound(i);
+      ResetSound(i);
+    }
+  }
+}
+// 需要注意MPDS服务器的设置嘛？ 它启用了偶数刻度模拟...
+void OnFrameSound(int client)
+{
+  if( client )
+  {
+    ResetSound(client);
+    // NextFrame ?
+    // ...
+  }
+}
+void ResetSound(int client)
+{
+  StopSound(client, SNDCHAN_AUTO, SOUND_HEART);
+  StopSound(client, SNDCHAN_STATIC, SOUND_HEART);
+}
+
+void ChangeClientHealth(int client, bool bRealhp, float targethp, 
+  bool bRefThirdStrike=false, bool bLimit=true)
+{
+  int iRealhp;
+  if(bRealhp)
+  {
+    iRealhp = RoundToFloor(targethp);
+    if(bLimit)
+    {
+      if(targethp < MAX_HP)
+      {
+       SetEntProp(client, Prop_Send, "m_iHealth", iRealhp);
+      }
+      else
+      {
+       SetEntProp(client, Prop_Send, "m_iHealth", MAX_HP);
+      }
+    }
+    else
+    {
+     SetEntProp(client, Prop_Send, "m_iHealth", iRealhp);
+    }
+  }
+  else  
+  {
+    float tempHP = view_as<float>(ML4D_GetPlayerTempHealth(client) );
+    float client_health = float(GetClientHealth(client)) + tempHP;
+    float rewardHP = targethp - tempHP;
+        
+    if((client_health + rewardHP) < (bLimit ? float(MAX_HEALTH_DEF) : (client_health + rewardHP + 1)) )
+    {
+     ML4D_SetPlayerTempHealthFloat(client, targethp);
+    }
+    else if (client_health <= (bLimit ? float(MAX_HEALTH_DEF) : (client_health + 1.0)) )
+    {
+     ML4D_SetPlayerTempHealthFloat(client, float(MAX_HEALTH_DEF) - client_health + tempHP);
+    }
+    else if (client_health > ( bLimit ? float(MAX_HEALTH_DEF) : client_health ) 
+      && (client_health + rewardHP) <= ( bLimit ? float(MAX_HP) : (client_health + rewardHP + 1.0)))
+    {
+     ML4D_SetPlayerTempHealthFloat(client, targethp);
+    }
+
+  }
+  if(bRefThirdStrike)
+    RefThirdStrike(client);
+}
+// ****************************************************************

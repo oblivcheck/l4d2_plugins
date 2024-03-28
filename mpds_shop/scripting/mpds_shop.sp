@@ -8,7 +8,7 @@
 
 #define PLUGIN_NAME             "MPDS Shop"
 #define PLUGIN_DESCRIPTION      "服务器商店与内嵌的击杀奖励系统"
-#define PLUGIN_VERSION          "REV 1.1.1a"
+#define PLUGIN_VERSION          "REV 1.1.2"
 #define PLUGIN_AUTHOR           "oblivcheck"
 #define PLUGIN_URL              "https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop"
 
@@ -22,6 +22,10 @@
 
 /************************************************************************
 Changes Log:
+2024-03-28 (REV 1.1.2)
+  - Add a plugin globe forward: "MSS_OnReceivingRewards"
+  - Auto find first item index in Sub-Shop.
+
 2024-03-25 (REV 1.1.1)
   - Organize the code.
 
@@ -101,7 +105,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 {
   RegPluginLibrary("mpds_shop");
 
-  CreatePluginNative();
+  CreatePluginCall();
 
   return APLRes_Success;
 }
@@ -141,6 +145,7 @@ public OnPluginStart()
   RegAdminCmd("sm_hreset", cmd_hreset, ADMFLAG_ROOT);  
 
   CacheShopItem();
+  SubShop_FindFirstValidItem();
 
   ResetClientShopItemInventory();
   ResetClientCount_LDW();
@@ -235,8 +240,8 @@ public Action Event_Defibrillator_Begin(Event event, const char[] name, bool don
   return Plugin_Handled;
 }
 #endif
-public Action Event_Defibrillator_Used(Event event, const char[] name, bool dontBroadcast)
 
+public Action Event_Defibrillator_Used(Event event, const char[] name, bool dontBroadcast)
 {
   int client = GetClientOfUserId(event.GetInt("userid") );
 
@@ -244,66 +249,39 @@ public Action Event_Defibrillator_Used(Event event, const char[] name, bool dont
     return Plugin_Continue;
   int target =  GetClientOfUserId(event.GetInt("subject") );
   int HP = GetClientHealth(client);
-  if((HP + DEFIB_REWARD) < MAX_HP )
-    SetEntProp(client, Prop_Send, "m_iHealth", HP + DEFIB_REWARD , 1);
-  else  SetEntProp(client, Prop_Send, "m_iHealth", MAX_HP, 1);
 
-  SetEntProp(client, Prop_Send, "m_currentReviveCount", 0);
-  SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
-  // 停止播放声音的方法来自 l4d_heartbeat.sp
-  SetEntProp(client, Prop_Send, "m_isGoingToDie", 0);
+  _MSSORR_iClient = client;
+  _MSSORR_iType = REASON_TYPE_HELP;
+  _MSSORR_iReason = REASON_HELP_DEFIB; 
+  _MSSORR_iTarget = target;
+  _MSSORR_bRealhp = true;
+  _MSSORR_bRefThirdStrike = true;
+  _MSSORR_bLimit = true;
+  _MSSORR_bMsg = true;
+  _MSSORR_fTargethp = float(HP +DEFIB_REWARD);
 
-  // Heartbeat sound, stop dupe sound bug, only way.
-  RequestFrame(OnFrameSound, client);
-  ResetSound(client);
-  ResetSound(client);
-  ResetSound(client);
-  ResetSound(client);
-  ResetSoundObs(client);
-
-  PrintToChatAll("\x05%N \x03使用除颤器救回 \x05%N", client, target);
-  PrintToChatAll("\x03----获得了\x05%d\x03生命值奖励并重置了自己的健康状态.", DEFIB_REWARD);
-
+  if(Call_MSS_OnReceivingRewards(_MSSORR_iClient, _MSSORR_bRealhp, _MSSORR_fTargethp, 
+    _MSSORR_iType, _MSSORR_iReason, _MSSORR_bRefThirdStrike, _MSSORR_bLimit,
+    _MSSORR_bMsg, _MSSORR_iTarget)
+      == Plugin_Handled)
+    return Plugin_Continue;
+    // 除非不对消息进行硬编码，否则原则上不应该将奖励生命值设置为负数，其它情况应设置_MSSORR_bMsg=false阻止消息
+  if(_MSSORR_bMsg)
+  {
+    PrintToChatAll("\x05%N \x03使用除颤器救回 \x05%N", client, target);
+    PrintToChatAll("\x03----获得了\x05%d\x03生命值奖励并重置了自己的健康状态.",
+      RoundToFloor(_MSSORR_fTargethp) - HP);
+  }
   if(!IsFakeClient(client) )
   {
     if(PT_Add(client, DEFIB_REWARD_PT) != -1 )
-      CPrintToChat(client, "\x03\x01获得了{blue} %d pt\x01", DEFIB_REWARD_PT);
-    else  CPrintToChat(client, "{blue}你的点数设置未成功：Cookie未加载？");
+    CPrintToChat(client, "\x03\x01获得了{blue} %d pt\x01", DEFIB_REWARD_PT);
   }
+  else  CPrintToChat(client, "{blue}你的点数设置未成功：Cookie未加载？");
 
   return Plugin_Continue;
 }
 
-void ResetSoundObs(int client)
-{
-        for( int i = 1; i <= MaxClients; i++ )
-        {
-                if( IsClientInGame(i) && !IsPlayerAlive(i) && GetEntPropEnt(i, Prop_Send, "m_hObserverTarget") == client )
-                {
-                        RequestFrame(OnFrameSound, GetClientUserId(i));
-                        ResetSound(i);
-                        ResetSound(i);
-                        ResetSound(i);
-                        ResetSound(i);
-                }
-        }
-}
-// 需要注意MPDS服务器的设置嘛？ 它启用了偶数刻度模拟...
-void OnFrameSound(int client)
-{
-        if( client )
-        {
-                ResetSound(client);
-    // NextFrame ?
-    // ...
-        }
-}
-
-void ResetSound(int client)
-{
-        StopSound(client, SNDCHAN_AUTO, SOUND_HEART);
-        StopSound(client, SNDCHAN_STATIC, SOUND_HEART);
-}
 //---------------------------------------------------------------------------||
 //    治愈濒死队友的奖励    
 //---------------------------------------------------------------------------||
@@ -348,11 +326,25 @@ public Action Event_Heal_Success(Event event, const char[] name, bool dontBroadc
 
   if (g_bHero[client])
   {
-    if((HP + HEAL_REWARD) < MAX_HP )
-      SetEntProp(client, Prop_Send, "m_iHealth", HP + HEAL_REWARD, 1);
-    else  SetEntProp(client, Prop_Send, "m_iHealth", MAX_HP, 1);
+    _MSSORR_iClient = client;
+    _MSSORR_iType = REASON_TYPE_HELP;
+    _MSSORR_iReason = REASON_HELP_HEAL; 
+    _MSSORR_iTarget = target;
+    _MSSORR_bRealhp = true;
+    _MSSORR_bRefThirdStrike = false;
+    _MSSORR_bLimit = true;
+    _MSSORR_bMsg = true;
+    _MSSORR_fTargethp = float(HP + HEAL_REWARD);
 
-    PrintToChatAll("\x05%N \x03使用医疗包治愈了处于濒死状态的 \x05%N\x03，获得了\x05%d\x03生命值奖励", client, target, HEAL_REWARD);
+    if(Call_MSS_OnReceivingRewards(_MSSORR_iClient, _MSSORR_bRealhp, _MSSORR_fTargethp, 
+      _MSSORR_iType, _MSSORR_iReason, _MSSORR_bRefThirdStrike, _MSSORR_bLimit,
+      _MSSORR_bMsg, _MSSORR_iTarget) 
+        == Plugin_Handled)
+      return Plugin_Continue;
+
+    if(_MSSORR_bMsg)  
+      PrintToChatAll("\x05%N \x03使用医疗包治愈了处于濒死状态的 \x05%N\x03，获得了\x05%d\x03生命值奖励", 
+        client, target, RoundToFloor(_MSSORR_fTargethp) - HP);
 
     if (!IsFakeClient(client) )
     {
@@ -406,22 +398,47 @@ public Action Event_Revive_Success(Event event, const char[] name, bool dontBroa
   int target =  GetClientOfUserId(event.GetInt("subject") );
   int HP = GetClientHealth(client);
 
-  int Add_HP;
+  int Add_HP;  
   if(g_bPlayerHanging[target])
   {
     g_bPlayerHanging[target] = false;
     if(g_iPlayerHanging_HP[target] < REVIVE_HP_REWARD)
+    {
       Add_HP = REVIVE_REWARD;
-    else  Add_HP = REVIVE_FAST_REWARD;
+      _MSSORR_iType = REASON_HELP_HANGING;
+    }
+    else  
+    {
+      Add_HP = REVIVE_FAST_REWARD;
+      _MSSORR_iType = REASON_HELP_HANGING_EMER;
+    }
   }
-  else  Add_HP = REVIVE_REWARD;
+  else  
+  {
+      Add_HP = REVIVE_REWARD;
+      _MSSORR_iType = REASON_HELP_REVIVE;
+  }
 
-  if((HP + Add_HP) < MAX_HP)
-    SetEntProp(client, Prop_Send, "m_iHealth", HP + Add_HP, 1);
+  _MSSORR_iClient = client;
+  _MSSORR_iReason = REASON_HELP_HEAL; 
+  _MSSORR_iTarget = target;
+  _MSSORR_bRealhp = true;
+  _MSSORR_bRefThirdStrike = false;
+  _MSSORR_bLimit = true;
+  _MSSORR_bMsg = true;
+  _MSSORR_fTargethp = float(HP + Add_HP);
 
-  else   SetEntProp(client, Prop_Send, "m_iHealth", MAX_HP, 1);
+  if(Call_MSS_OnReceivingRewards(_MSSORR_iClient, _MSSORR_bRealhp, _MSSORR_fTargethp, 
+    _MSSORR_iType, _MSSORR_iReason, _MSSORR_bRefThirdStrike, _MSSORR_bLimit,
+    _MSSORR_bMsg, _MSSORR_iTarget) 
+      == Plugin_Handled)
+    return Plugin_Continue;
 
-  PrintToChatAll("\x05%N \x03救起了 \x05%N\x03，获得了\x05%d\x03生命值奖励", client, target, Add_HP);
+
+  if(_MSSORR_bMsg) 
+    PrintToChatAll("\x05%N \x03救起了 \x05%N\x03，获得了\x05%d\x03生命值奖励",
+      client, target, RoundToFloor(_MSSORR_fTargethp) - HP);
+
   if(Add_HP == REVIVE_REWARD)
   {
     if(!IsFakeClient(client) )
@@ -441,8 +458,8 @@ public Action Event_Revive_Success(Event event, const char[] name, bool dontBroa
 
 public OnMapStart()
 {
-  On = true;
-
+  On = true; 
+  //SubShop_FindFirstValidItem();
   fuc_Precache();  
 }
 
@@ -566,17 +583,26 @@ public Action Event_Player_Death(Event event, const char[] name, bool dontBroadc
     if(!sTarget[0])
       return Plugin_Continue;
 
-    float client_health = float(GetClientHealth(client)) + ML4D_GetPlayerTempHealth(client);
-    if((client_health + Add_Health) < float(MAX_HEALTH_DEF) )
-      ML4D_SetPlayerTempHealthFloat(client, Add_Health + ML4D_GetPlayerTempHealth(client) );
+    float HP = float(ML4D_GetPlayerTempHealth(client) ); 
+    _MSSORR_iClient = client;
+    _MSSORR_iType = REASON_TYPE_SI;
+    _MSSORR_iReason = iClass; 
+    _MSSORR_iTarget = target;
+    _MSSORR_bRealhp = false;
+    _MSSORR_bRefThirdStrike = false;
+    _MSSORR_bLimit = true;
+    _MSSORR_bMsg = true;
+    _MSSORR_fTargethp = Add_Health + HP;
 
-    else if (client_health <= float(MAX_HEALTH_DEF) )
-      ML4D_SetPlayerTempHealthFloat(client, float(MAX_HEALTH_DEF) - client_health + ML4D_GetPlayerTempHealth(client) );      
+    if(Call_MSS_OnReceivingRewards(_MSSORR_iClient, _MSSORR_bRealhp, _MSSORR_fTargethp, 
+      _MSSORR_iType, _MSSORR_iReason, _MSSORR_bRefThirdStrike, _MSSORR_bLimit,
+      _MSSORR_bMsg, _MSSORR_iTarget) 
+        == Plugin_Handled)
+      return Plugin_Continue;
 
-    else if (client_health > float(MAX_HEALTH_DEF) && (client_health + Add_Health) <= MAX_HP)
-      ML4D_SetPlayerTempHealthFloat(client, Add_Health + ML4D_GetPlayerTempHealth(client) );
-
-    PrintToChat(client, "\x05杀死了\x03%s\x05, 获得了\x03%.f\x01临时生命值.", sTarget, Add_Health);
+    if(_MSSORR_bMsg) 
+      PrintToChat(client, "\x05杀死了\x03%s\x05, 获得了\x03%.f\x01临时生命值.", 
+        sTarget,  _MSSORR_fTargethp - HP);
 
   }
 
@@ -1286,3 +1312,9 @@ Action tOpenShopLockTime(Handle Timer, any client)
   g_bPlayerOpenShopCooldown[client] = false;  
   return Plugin_Continue;
 }
+
+//public Action MSS_OnReceivingRewardsint client, bool &bRealhp, float &targethp,
+//int &type, int &reason, bool &bRefThirdStrike=false, bool &bLimit=true)
+//{
+//  return Plugin_Continue;
+//}

@@ -31,6 +31,10 @@
 
 ## Changes Log
 ~~~
+2024-03-28 (REV 1.1.2)
+  - Add a plugin globe forward: "MSS_OnReceivingRewards"
+  - Auto find first item index in Sub-Shop.
+
 2024-03-25 (REV 1.1.1)
   - Organize the code.
 
