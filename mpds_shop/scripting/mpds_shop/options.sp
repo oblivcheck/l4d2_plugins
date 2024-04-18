@@ -18,6 +18,8 @@
 // 如果被救助的玩家是挂边状态，但并不被认为是需要紧急救助，那么玩家应该恢复的生命值将被下面的值覆盖
 #define	REVIVE_FAST_REWARD	10
 
+// Tank是否影响点数变化，包括相关奖励与超时击杀惩罚
+#define TANK_REWARD_ENABLE    0
 // 扫描存活TANK的时间间隔(秒)
 #define	TANK_ALIVE_TIMER_INTERVAL	5.0
 // 启用Tank特殊击杀奖励(单独/近战)
@@ -25,14 +27,14 @@
 // 玩家单独击杀了Tank，并且仅使用近战武器，奖励的PT
 #define	TANK_SOLO_MELEE_REWARD		1000
 // 击杀TANK奖励PT
-#define	TANK_REWARD			20
+#define	TANK_REWARD			0
 // 仅使用近战击杀TANK额外的奖励PT
 #define	TANK_ONLY_MELEE_REWARD		50
 // TANK发现幸存者后，存活时间>=TANK_ALIVE_TIMER_COUNT*TANK_ALIVE_TIMER_INTERVAL
-//   后开始在次扫描中扣除幸存者的PT
+//   后开始在每一次扫描中扣除幸存者的PT
 #define	TANK_ALIVE_TIMER_COUNT		24
 // 每一次扣除的数量
-#define	TANK_ALIVE_DEDUCT_PT		4
+#define	TANK_ALIVE_DEDUCT_PT		0
 
 // 击杀特殊感染者恢复的临时生命值，
 //   在玩家当前总生命值没有超过MAX_HEALTH_DEF的情况下，
@@ -43,6 +45,17 @@
 #define	JOCKEY_REWARD		10.0
 #define	HUNTER_REWARD		12.0
 #define	CHARGER_REWARD		16.0
+
+// 若击杀特感获得的PT奖励的低于或等于该值，将不会在聊天框输出“获得了xxpt”消息
+#define SI_REWARD_PT_ENABLE   0
+// 击杀特感的PT奖励
+#define	BOOMER_REWARD_PT		1
+#define	SPITTER_REWARD_PT		1
+#define	SMOKER_REWARD_PT		1
+#define	JOCKEY_REWARD_PT		2
+#define	HUNTER_REWARD_PT		2
+#define	CHARGER_REWARD_PT		2
+
 
 /***商店物品的详细属性在 "mpds_shop/items.sp" 的 “CacheShopItem()” 中进行设置***/
 // 允许抽奖的次数，如果被限制了；如果玩家的pt点数在花费LDW_PRICE之后将为负数，则启用限制

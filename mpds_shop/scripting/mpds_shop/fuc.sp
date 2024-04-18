@@ -308,7 +308,8 @@ int Get_SubShopItemWeaponPrice(int ShopItemIndex, int client)
 
   if(strncmp(sPrice, "f", 1, false) == 0)
     iPrice = 0;
-  else if(strncmp(sPrice, "l", 1, false) == 0)
+  // 后一个针对_MSS_
+  else if(strncmp(sPrice, "l", 1, false) == 0 || strncmp(sPrice, "-1", 2, false) == 0)
     iPrice = -1;
   else if(StrContains(sPrice, "+", false) != -1)
   { 

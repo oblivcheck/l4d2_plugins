@@ -11,18 +11,20 @@
 #include "mpds_shop/fuc.sp"
 #include "mpds_shop/inc.sp"
 #include "mpds_shop/special_items.sp"
+#include "mpds_shop/ldw.sp"
 ```
-## Developers
+## For Developers
 
-[mpds.inc](https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop/scripting/mpds_shop/include/mpds_shop.inc)
+[mpds.inc](https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop/scripting/include/mpds_shop.inc)
 
 [inc.sp](https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop/scripting/mpds_shop/inc.sp)
 
-**Installed plugin:**
+**Item: Special Function(Effect) Require Plugin:**
 
 [l4d2_fireworks](https://forums.alliedmods.net/showthread.php?p=1441088)
 
-[l4dinfectedbots v2.8.8fork](https://github.com/oblivcheck/l4d2_plugins/blob/master/l4dinfectedbots)
+~~[l4dinfectedbots v2.8.8fork](https://github.com/oblivcheck/l4d2_plugins/blob/master/l4dinfectedbots)~~
+*Spawn and control a Tank" is currently unavailable*
 
 ## About
 * Previously a private plugin on the server.
@@ -31,6 +33,16 @@
 
 ## Changes Log
 ~~~
+2024-04-18 (REV 1.1.3)
+  * Latest version on my server, include some changes specific to my server.
+  - Adjustment plugin globe forward: "MSS_OnReceivingRewards"
+  - More plugin options.
+  - Clear garbage messages like 'ERROR ... XXX target idx ==0' from the server console.
+  - Fixed: "inconsistent indentation" compile warning.
+  - Fixed: an issue where !ldw or random items could select the "_MSS_*" delimiter.
+    - Simple method.
+  - Organize the code.
+
 2024-03-28 (REV 1.1.2)
   - Add a plugin globe forward: "MSS_OnReceivingRewards"
   - Auto find first item index in Sub-Shop.
@@ -104,7 +116,7 @@
 ## Settings
 **Cvars**
 
-Noting.
+Nothing.
 
 **Client command**
 ~~~

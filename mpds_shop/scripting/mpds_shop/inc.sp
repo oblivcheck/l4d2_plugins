@@ -45,8 +45,8 @@ bool  _MSSORR_bLimit;
 bool  _MSSORR_bMsg;
 float _MSSORR_fTargethp;
 
-Action Call_MSS_OnReceivingRewards(int client, bool bRealhp, float targethp, 
-  int type, int reason, bool bRefThirdStrike, bool bLimit, bool bMsg, int target)
+Action Call_MSS_OnReceivingRewards(int client, bool &bRealhp, float &targethp, 
+  int &type, int &reason, bool &bRefThirdStrike, bool &bLimit, bool &bMsg, int target)
 {
   Action aResult = Plugin_Continue;
   Call_StartForward(g_hForward_MSS_OnReceivingRewards); 

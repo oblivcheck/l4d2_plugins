@@ -8,7 +8,7 @@
 
 #define PLUGIN_NAME             "MPDS Shop"
 #define PLUGIN_DESCRIPTION      "服务器商店与内嵌的击杀奖励系统"
-#define PLUGIN_VERSION          "REV 1.1.2"
+#define PLUGIN_VERSION          "REV 1.1.3"
 #define PLUGIN_AUTHOR           "oblivcheck"
 #define PLUGIN_URL              "https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_shop"
 
@@ -19,9 +19,20 @@
 #include "mpds_shop/fuc.sp"
 #include "mpds_shop/inc.sp"
 #include "mpds_shop/special_items.sp"
+#include "mpds_shop/ldw.sp"
 
 /************************************************************************
 Changes Log:
+2024-04-18 (REV 1.1.3)
+  * Latest version on my server, include some changes specific to my server.
+  - Adjustment plugin globe forward: "MSS_OnReceivingRewards"
+  - More plugin options.
+  - Clear garbage messages like 'ERROR ... XXX target idx ==0' from the server console.  
+  - Fixed: "inconsistent indentation" compile warning.
+  - Fixed: an issue where !ldw or random items could select the "_MSS_*" delimiter. 
+    - Simple method.
+  - Organize the code.
+
 2024-03-28 (REV 1.1.2)
   - Add a plugin globe forward: "MSS_OnReceivingRewards"
   - Auto find first item index in Sub-Shop.
@@ -196,7 +207,7 @@ Action cmd_hreset(int client, int args)
                 break;
               }
           }
-          else  PrintToServer("\nERROR: cmd_hreset(); %N# target idx == 0", client);
+          //else  PrintToServer("\nERROR: cmd_hreset(); %N# target idx == 0", client);
         }
         else  PrintToServer("\nERROR: cmd_hreset(); %N# id == 0", client);
       }
@@ -474,7 +485,7 @@ public OnMapEnd()
 
 public Action Event_Round_Start(Event event, const char[] name, bool dontBroadcast)
 {
-  CreateTimer(0.5, tDelaySwitchteam, -1);
+//  CreateTimer(0.5, tDelaySwitchteam, -1);
 
   if(On)
   {
@@ -511,14 +522,14 @@ public Action Event_Player_Death(Event event, const char[] name, bool dontBroadc
   if(tank_player == g_iTank_player)
   {
 
-    CreateTimer(0.1, tDelaySwitchteam, tank_player);
+//    CreateTimer(0.1, tDelaySwitchteam, tank_player);
     g_iTank_player = -1;
 
     int killer  = GetClientOfUserId(GetEventInt(event, "attacker"));
     if(killer <= 0 || killer > MaxClients || !IsClientInGame(killer) || GetClientTeam(killer) != 2 )
       return Plugin_Continue;
 
-    CPrintToChatAll("\x03一只由玩家控制的Tank已经死亡，所有幸存者获得了{blue} %d pt的奖励.", TANK_REWARD*2);
+    //CPrintToChatAll("\x03一只由玩家控制的Tank已经死亡，所有幸存者获得了{blue} %d pt的奖励.", TANK_REWARD*2);
 
     int value = TANK_REWARD * 2;
 
@@ -551,32 +562,39 @@ public Action Event_Player_Death(Event event, const char[] name, bool dontBroadc
     float Add_Health;
     int iClass = GetEntProp(target, Prop_Send, "m_zombieClass");
     char sTarget[32];
+    int r_pt;
     switch(iClass)
     {
       case  2:{
           Format(sTarget, sizeof(sTarget), "Boomer");
           Add_Health = BOOMER_REWARD;
+          r_pt = BOOMER_REWARD_PT;
       }
       case  4:{
           Format(sTarget, sizeof(sTarget), "Spitter");
           Add_Health = SPITTER_REWARD;
+          r_pt = SPITTER_REWARD_PT;
       }
       case  1:{
           Format(sTarget, sizeof(sTarget), "Smoker");
           Add_Health = SMOKER_REWARD;
+          r_pt = SMOKER_REWARD_PT;
       }
       case  5:{
           Format(sTarget, sizeof(sTarget), "Jockey");
           Add_Health = JOCKEY_REWARD;
+          r_pt = JOCKEY_REWARD_PT;
       }
       case  3:{  
           Format(sTarget, sizeof(sTarget), "Hunter");
           Add_Health = HUNTER_REWARD;
+          r_pt = HUNTER_REWARD_PT;
       }
 
       case  6:{ 
           Format(sTarget, sizeof(sTarget), "Charger");
           Add_Health = CHARGER_REWARD;
+          r_pt = CHARGER_REWARD_PT;
       }
     }
 
@@ -603,6 +621,16 @@ public Action Event_Player_Death(Event event, const char[] name, bool dontBroadc
     if(_MSSORR_bMsg) 
       PrintToChat(client, "\x05杀死了\x03%s\x05, 获得了\x03%.f\x01临时生命值.", 
         sTarget,  _MSSORR_fTargethp - HP);
+
+    if(r_pt <= SI_REWARD_PT_ENABLE)
+      return Plugin_Continue;
+
+    if(!IsFakeClient(client) )
+    {
+      if(PT_Add(client, r_pt) != -1 )
+      CPrintToChat(client, "\x03\x01获得了{blue} %d pt\x01", r_pt);
+    }
+    else  CPrintToChat(client, "{blue}你的点数设置未成功：Cookie未加载？");
 
   }
 
@@ -670,7 +698,7 @@ public void OnClientCookiesCached(int client)
           break;
         }
     }
-    else  PrintToServer("\nERROR: OnClientCookiesCached(); %N# target idx == 0", client);
+    //else  PrintToServer("\nERROR: OnClientCookiesCached(); %N# target idx == 0", client);
   }
   else  PrintToServer("\nERROR: OnClientCookiesCached(); %N# id == 0", client);
 
@@ -793,70 +821,6 @@ Action cmd_ldw(int client, int args)
   return Plugin_Continue;
 }
 
-void LDW(int client, bool limit=false)
-{
-  SetRandomSeed(RoundToFloor(GetEngineTime() ) );
-
-  if(limit)
-  {
-    if(g_iClientCount_LDW[client] == 0)
-    {
-      CPrintToChat(client, "{blue}[商店-抽奖]\x01 你当前章节剩余的抽奖次数不足...");
-      return;
-    }
-    g_iClientCount_LDW[client]--;
-  }
-  
-  float value = GetRandomFloat(0.00, 1000.00);
-  if(value < 100.00)
-  {
-    ServerCommand("sm_slay #%d", GetClientUserId(client));
-    //SDKHooks_TakeDamage(client, 0, 0, 1000.0, DMG_FALL);    
-    CPrintToChatAll("{blue}[商店-抽奖]\x01 %N 花费{blue} %d pt\x01获得了\x05解脱...", client, LDW_PRICE);
-    PT_Get(client, _PTS);
-    CPrintToChat(client, "{blue} 剩余: %s pt", _PTS );
-    return;    
-  }
-  if(value < 400.00)
-  {
-    int pt = RoundToNearest(GetRandomFloat(-60.00, 30.00) );
-    PT_Add(client, pt);
-    CPrintToChatAll("{blue}[商店-抽奖]\x01 %N 花费{blue} %d pt\x01获得了\x05 %d pt", client, LDW_PRICE, pt);
-    PT_Get(client, _PTS);
-    CPrintToChat(client, "{blue} 剩余: %s pt", _PTS );
-    return;
-  }
-
-  bool allow = true;
-  while(allow)
-  {    
-    int idx = RoundToNearest(GetRandomFloat(0.00, float(SubShop_ItemDisplayName.Length-1) ) );
-    if(Get_SubShopItemWeaponPrice(idx, client) == -1 )
-      continue;
-    char name[64];
-    SubShop_ItemName.GetString(idx, name, sizeof(name) );
-    // 这里是针对随机物品，锁定的选项&&特殊效果会被上一步先行排除，仅限于目前的状态.
-    if(!name[0] )
-      continue;
-
-    allow = false;
-    if(SetItems(client, name, idx, LDW_PRICE) )
-    {
-      SubShop_ItemDisplayName.GetString(idx, name, sizeof(name) );    
-      CPrintToChatAll("{blue}[商店-抽奖]\x01 %N 花费{blue} %d pt\x01获得了\x05 %s", client, LDW_PRICE, name);
-    }
-    else
-    {
-      if(limit)
-        g_iClientCount_LDW[client]++;  
-
-      CPrintToChat(client, "{blue}[商店-抽奖]\x01 设置物品失败，所有花费已返还.");
-    }
-    PT_Get(client, _PTS);
-    CPrintToChat(client, "{blue} 剩余: %s pt", _PTS );
-  }
-}
-
 void DisplayShopMenu(int client)
 {
   Menu shop = CreateMenu(Menu_Shop);
@@ -966,7 +930,11 @@ bool SetItems(int client, const char[] weapon, int ShopItemIndex=-1, int RandomP
 
   if(strncmp(weapon, "other", 5, false) == 0)
     value = false;
-
+  /*
+  if(strncmpd(weapon, "_MSS_", 5, false) == 0 )
+    value = false;
+  */
+  // 未来应进一步扩展
   if(strncmp(weapon, "cmd", 3, false) == 0)
   {
     Sitems_Fireworks(client, weapon);
@@ -1170,7 +1138,10 @@ void Event_Tank_Killed(Event event, const char[] name, bool dontBroadcast)
   PrintToChatAll("Event_Tank_Killed: %N#%d", killer, killer);
 #endif
 
-#if Tank_SpecialKilled
+int value = TANK_REWARD;
+
+#if TANK_REWARD_ENABLE
+  #if Tank_SpecialKilled
   if(solo && melee && IsClientInGame(killer) )
   {
     ServerCommand("[%s]: %N Event_Tank_Killed: solo AND melee", PLUGIN_NAME, killer);
@@ -1179,18 +1150,17 @@ void Event_Tank_Killed(Event event, const char[] name, bool dontBroadcast)
     CPrintToChatAll("\x03%N\x01 获得了{blue} %d pt\x01的奖励！", TANK_SOLO_MELEE_REWARD);
     return;
   }
-#endif
+  #endif
 
   CPrintToChatAll("\x03一只Tank已经死亡，所有幸存者获得了{blue} %d pt的奖励.", TANK_REWARD);
 
-  int value = TANK_REWARD;
-
-#if Tank_SpecialKilled
+  #if Tank_SpecialKilled
   if(melee)
   {
     CPrintToChatAll("\x03所有幸存者因Tank仅受到了近战伤害而得到的额外奖励: {blue} %d pt", TANK_ONLY_MELEE_REWARD);
     value = value + TANK_ONLY_MELEE_REWARD;
   }
+  #endif
 #endif
 
   for(int i=1; i<=MaxClients; i++)
@@ -1275,7 +1245,9 @@ Action tTankAlive(Handle Timer)
     if(g_iTankPTChanged > 0)
       Format(value, sizeof(value), "+%s", value);
 
+#if TANK_REWARD_ENABLE 
     PrintToChatAll("\x03自\x04Tank\x03生成以来，每个幸存者的点数变化为: \x05%s", value);
+#endif
 
     g_iTankAliveTime = 0;
     g_iTankPTChanged = 0;
@@ -1313,8 +1285,3 @@ Action tOpenShopLockTime(Handle Timer, any client)
   return Plugin_Continue;
 }
 
-//public Action MSS_OnReceivingRewardsint client, bool &bRealhp, float &targethp,
-//int &type, int &reason, bool &bRefThirdStrike=false, bool &bLimit=true)
-//{
-//  return Plugin_Continue;
-//}
