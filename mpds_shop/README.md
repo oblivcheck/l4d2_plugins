@@ -24,7 +24,8 @@
 [l4d2_fireworks](https://forums.alliedmods.net/showthread.php?p=1441088)
 
 ~~[l4dinfectedbots v2.8.8fork](https://github.com/oblivcheck/l4d2_plugins/blob/master/l4dinfectedbots)~~
-*Spawn and control a Tank" is currently unavailable*
+
+*"Spawn and control a Tank" is currently unavailable*
 
 ## About
 * Previously a private plugin on the server.
