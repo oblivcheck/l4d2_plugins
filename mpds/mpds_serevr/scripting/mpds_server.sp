@@ -15,7 +15,7 @@
 2024-06-19 (3.7b)
   - 整理代码.
   - 编译时默认不包括GM库.
-  - 整合mpds_fix.sp && mpds_chainsaw_sapwn.sp &7 mpds_anglesfix.sp
+  - 整合mpds_fix.sp && mpds_chainsaw_sapwn.sp && mpds_anglesfix.sp
   - 可加载外部VScript.
   - !zs 命令现在使用内置函数，并且可以播放自杀枪声.
   - 一些提示&注释调整

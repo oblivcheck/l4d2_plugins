@@ -8,7 +8,7 @@
 
 应存在目录:
 ```left4dead2/script/vscript/rpp```
-以及该目录至少存在如下的[文件](https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds_server/rpp/):
+以及该目录至少存在如下的[文件](https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds/mpds_server/rpp/):
 ```
 rpp/manacat_tank
 rpp/manacat_tank/info.nut
