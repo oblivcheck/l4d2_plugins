@@ -12,6 +12,9 @@
 //#include <gm>
 
 /*
+2024-06-24 (3.7c)
+  - 删除影响医疗包生成的多余代码.
+
 2024-06-19 (3.7b)
   - 整理代码.
   - 编译时默认不包括GM库.
@@ -23,7 +26,7 @@
 
 #define PLUGIN_NAME             "MPDS Server"
 #define PLUGIN_DESCRIPTION      "多人专用服务器上的小功能集合"
-#define PLUGIN_VERSION          "3.7b"
+#define PLUGIN_VERSION          "3.7c"
 #define PLUGIN_AUTHOR           "oblivcheck"
 #define PLUGIN_URL              "https://github.com/oblivcheck/l4d2_plugins/blob/master/mpds/mpds_server"
 

@@ -71,32 +71,20 @@ void FindSpawnPos(int type)
       float pos[3]
       GetClientAbsOrigin(client, pos);
       int count = GetPlayerNum();
-      if(type == 1)			
+      if(count < 5)
       {
-        count = 16
-        if(count > 4)
-        {
-          for(int p=0;p<(count-4);p++)
-            SpawnFAK(pos);
-        }
+      	SpawnCS(pos);
+      }
+      else if (count < 9)
+      {
+      	SpawnCS(pos);
+      	SpawnCS(pos);
       }
       else
       {
-        if(count < 5)
-        {
-        	SpawnCS(pos);
-        }
-        else if (count < 9)
-        {
-        	SpawnCS(pos);
-        	SpawnCS(pos);
-        }
-        else
-        {
-        	SpawnCS(pos);
-        	SpawnCS(pos);
-        	SpawnCS(pos);
-        }
+      	SpawnCS(pos);
+      	SpawnCS(pos);
+      	SpawnCS(pos);
       }
       break;
     }
@@ -124,22 +112,6 @@ stock void SpawnCS(float vOrigin[3])
 
 	// Valve Cvar:ammo_chainsaw_max .def 20
 	SetEntProp(entity_weapon, Prop_Send, "m_iExtraPrimaryAmmo", 120, 4);	
-}
-
-void SpawnFAK(float vOrigin[3])
-{
-  int entity_weapon = -1;
-  entity_weapon = CreateEntityByName("weapon_first_aid_kit");
-
-  if( entity_weapon == -1 )
-    ThrowError("无法创建实体：first_aid_kit");
-
-  float vPos[3];
-  vPos = vOrigin;
-  vPos[2] += 3.0;
-
-  TeleportEntity(entity_weapon, vPos, NULL_VECTOR, NULL_VECTOR);
-  DispatchSpawn(entity_weapon);
 }
 
 stock int GetPlayerNum()
