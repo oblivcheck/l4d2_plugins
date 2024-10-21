@@ -4,7 +4,7 @@
 
 #define PLUGIN_NAME       "[L4D2] Prevent Help"
 #define PLUGIN_DESCRIPTION    "Prevent Survivor bot Help incap survivor when tank/witch alive."
-#define PLUGIN_VERSION      "1.0"
+#define PLUGIN_VERSION      "1.1"
 #define PLUGIN_AUTHOR       "Iciaria/oblivcheck"
 #define PLUGIN_URL        ""
 
@@ -123,9 +123,10 @@ public void OnGameFrame()
 
   if(allow)
   {
+    Address area;
     for(int i=0; i < aShouldBlockAreaList.Length; i++)
     {
-      Address area = aShouldBlockAreaList.Get(i);
+      area = aShouldBlockAreaList.Get(i);
       int flags = L4D_GetNavArea_AttributeFlags(area);
       aShouldBlockAreaList.Set(i, flags, 1)
       L4D_SetNavArea_AttributeFlags(area, flags | NAV_BASE_PLAYERCLIP);
@@ -150,9 +151,10 @@ public void OnGameFrame()
   }
   else
   {
+    Address area;
     for(int i=0; i < aShouldBlockAreaList.Length; i++)
     {
-      Address area = aShouldBlockAreaList.Get(i);
+      area = aShouldBlockAreaList.Get(i);
       int flags = L4D_GetNavArea_AttributeFlags(area);
       L4D_SetNavArea_AttributeFlags(area, flags & ~NAV_BASE_PLAYERCLIP);
     }
