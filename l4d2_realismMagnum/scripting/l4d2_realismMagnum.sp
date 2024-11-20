@@ -19,17 +19,11 @@ Change Logs:
 -------------------------------------------------------------------------------
 */
 
-ConVar cvarEnabled, cvarTore, cvarBlockpenet, gamemode;
-bool bHooked = false, g_bIsrealism = false;
+ConVar cvarEnabled, cvarTore, cvarBlockpenet, cvarAllowAWP, cvarAllowScout, gamemode;
+bool bHooked = false, g_bIsrealism = false, g_bAllowAWP = false, g_bAllowScout = false;
 int g_iTore = 0, g_iBlockpenet = 0, g_iCurrentPenetrationCount[MAXPLAYERS + 1] = { 0, ... };
 
 #define CVAR_FLAGS FCVAR_NOTIFY
-#define IS_VALID_CLIENT(%1) (%1 > 0 && %1 <= MaxClients)
-#define IS_CONNECTED_INGAME(%1) (IsClientConnected(%1) && IsClientInGame(%1))
-#define IS_SURVIVOR(%1) (GetClientTeam(%1) == 2)
-#define IS_VALID_INGAME(%1) (IS_VALID_CLIENT(%1) && IS_CONNECTED_INGAME(%1))
-#define IS_VALID_SURVIVOR(%1) (IS_VALID_INGAME(%1) && IS_SURVIVOR(%1))
-#define IS_SURVIVOR_ALIVE(%1) (IS_VALID_SURVIVOR(%1) && IsPlayerAlive(%1))
 
 public Plugin myinfo =
 {
@@ -57,12 +51,16 @@ public void OnPluginStart()
 	cvarEnabled = CreateConVar("l4d2_RealismMagnum_Enabled", "1", "Enable this plugins?\n0 = Disable, 1 = Enable", CVAR_FLAGS);
 	cvarTore = CreateConVar("l4d2_RealismMagnum_tore", "1", "Magnum will tore common infection to pieces?\n0 = Disable, 1 = Enable, 2 = Only enable in realism", CVAR_FLAGS);
 	cvarBlockpenet = CreateConVar("l4d2_RealismMagnum_blockpenet", "1", "Block Magnum from penetrating the first common infection?\n0 = No, 1 = Yes, 2 = only Block in realism", CVAR_FLAGS);
+	cvarAllowAWP = CreateConVar("l4d2_RealismMagnum_allow_awp", "1", "Allow for awp?\n0 = No, 1 = Yes", CVAR_FLAGS);
+	cvarAllowScout = CreateConVar("l4d2_RealismMagnum_allow_scout", "1", "Allow for scout?\n0 = No, 1 = Yes", CVAR_FLAGS);
 
 	cvarEnabled.AddChangeHook(EnableChanged);
-	cvarTore.AddChangeHook(ToreChanged);
-	cvarBlockpenet.AddChangeHook(BlockpenetChanged);
+	cvarTore.AddChangeHook(ConVarsChanged);
+	cvarBlockpenet.AddChangeHook(ConVarsChanged);
 	gamemode = FindConVar("mp_gamemode");
 	gamemode.AddChangeHook(OnGameModeChanged);
+	cvarAllowAWP.AddChangeHook(ConVarsChanged);
+	cvarAllowScout.AddChangeHook(ConVarsChanged);
 
 	AutoExecConfig(true, "l4d2_realismMagnum");
 }
@@ -78,6 +76,8 @@ void IsAllowed()
 	if(bPluginOn && !bHooked)
 	{
 		bHooked = true;
+		ConVarsChanged(null, "", "");
+		OnGameModeChanged(null, "", "");
 		HookEvent("weapon_fire", Event_WeaponFire);
 	}
 	else if(!bPluginOn && bHooked)
@@ -92,14 +92,12 @@ void EnableChanged(ConVar cvar, const char[] oldVal, const char[] newVal)
 	IsAllowed(); 
 }
 
-void ToreChanged(ConVar cvar, const char[] oldVal, const char[] newVal)
-{	
+void ConVarsChanged(ConVar cvar, const char[] oldVal, const char[] newVal)
+{
 	g_iTore = cvarTore.IntValue;
-}
-
-void BlockpenetChanged(ConVar cvar, const char[] oldVal, const char[] newVal)
-{	
 	g_iBlockpenet = cvarBlockpenet.IntValue;
+	g_bAllowAWP = cvarAllowAWP.BoolValue;
+	g_bAllowScout = cvarAllowScout.BoolValue;
 }
 
 void OnGameModeChanged(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -108,11 +106,14 @@ void OnGameModeChanged(ConVar convar, const char[] oldValue, const char[] newVal
 	{
 		char buffer_gamemode[32];
 		gamemode.GetString(buffer_gamemode, sizeof(buffer_gamemode));
-		if( StrContains(buffer_gamemode, "realism", false) != -1 )
+		if(StrContains(buffer_gamemode, "realism", false) != -1)
 		{
 			g_bIsrealism = true;
 		}
-		g_bIsrealism = false;
+		else
+		{
+			g_bIsrealism = false;
+		}
 	}
 }
 
@@ -140,38 +141,47 @@ Action eOnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, 
 {
 	if (bHooked)
 	{
-		if (IS_SURVIVOR_ALIVE(attacker))
+		if (IsValidSurv(attacker))
 		{
+			char Weapon[64];
+			GetClientWeapon(attacker, Weapon, sizeof(Weapon));
+			if((!g_bAllowAWP && StrEqual(Weapon, "weapon_sniper_awp")) || (!g_bAllowScout && StrEqual(Weapon, "weapon_sniper_scout")))
+			{
+				return Plugin_Continue;
+			}
+
 			g_iCurrentPenetrationCount[attacker]++;
 			if (damagetype == -2147483646 && ammotype == 2)
 			{
 				//Change damagetype to m60
-				if ( (g_iTore == 1 || g_iTore == 2 && g_bIsrealism) && g_iCurrentPenetrationCount[attacker] == 1)
+				if ((g_iTore == 1 || (g_iTore == 2 && g_bIsrealism)) && g_iCurrentPenetrationCount[attacker] == 1)
 				{	
 					damagetype = -2130706430;
 					return Plugin_Changed;
 				}
 				//Block 
-				else if ( (g_iBlockpenet == 1 || g_iBlockpenet == 2 && g_bIsrealism) && g_iCurrentPenetrationCount[attacker] > 1)
+				else if ((g_iBlockpenet == 1 || (g_iBlockpenet == 2 && g_bIsrealism)) && g_iCurrentPenetrationCount[attacker] > 1)
 				{				
 					SetEntProp(victim, Prop_Send, "m_iRequestedWound1", -1);
 					SetEntProp(victim, Prop_Send, "m_iRequestedWound2", -1);
 					return Plugin_Handled;   
 				}
-				return Plugin_Continue;
 			}
-			return Plugin_Continue;
 		}
-		return Plugin_Continue;
 	}
 	return Plugin_Continue;
 }
 
 void Event_WeaponFire(Event event, const char[] name, bool dontBroadcast)
 {
-    int client = GetClientOfUserId(GetEventInt(event, "userid"));
-    if(client > 0)
+    int client = GetClientOfUserId(event.GetInt("userid"));
+    if(IsValidSurv(client))
     {
     	g_iCurrentPenetrationCount[client] = 0;
     }
+}
+
+bool IsValidSurv(int client)
+{
+    return client > 0 && client <= MaxClients && IsClientInGame(client) && GetClientTeam(client) == 2 && IsPlayerAlive(client);
 }
